@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useSheetData, getMonthLabel } from '@/hooks/useSheetData';
+import { useSheetData, getMonthLabel, getMonthNumber } from '@/hooks/useSheetData';
 import { type SubTabConfig } from '@/types/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { type MultiSelectOption } from '@/components/ui/multi-select';
 import { SubTabSummaryCards } from './SubTabSummaryCards';
 import { EmissionBarChart } from '@/components/charts/EmissionBarChart';
 import { EmissionDonutChart } from '@/components/charts/EmissionDonutChart';
+import { Calendar, CalendarDays } from 'lucide-react';
 
 interface SubTabDashboardProps {
     tab: SubTabConfig;
@@ -16,6 +17,8 @@ const CHART_COLORS = [
     '#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6',
     '#EC4899', '#06B6D4', '#F97316', '#6366F1', '#14B8A6',
 ];
+
+type ChartGroupBy = 'year' | 'month';
 
 export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     const {
@@ -28,6 +31,7 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
 
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+    const [chartGroupBy, setChartGroupBy] = useState<ChartGroupBy>('year');
 
     const years = selectedYears.length > 0 ? selectedYears : undefined;
     const months = selectedMonths.length > 0 ? selectedMonths : undefined;
@@ -60,40 +64,52 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         }
     };
 
-    /* ── Chart data ────────────────────────────────── */
+    /* ── Chart data — group by Year or Month ──────── */
 
-    // Find a good categorical column to group by (first text column that isn't Year/Month)
-    const groupCol = useMemo(
-        () =>
-            tab.columns.find(
-                (c) =>
-                    c.type === 'text' &&
-                    c.key !== 'Reporting Year' &&
-                    c.key !== 'Month' &&
-                    c.key !== 'Remarks',
-            ),
-        [tab.columns],
-    );
-
-    // Emission column for charts
     const emissionKey =
         tab.columns.find((c) => c.key.includes('Calculated Emissions (kg CO2e)'))?.key ?? '';
 
     const chartGrouped = useMemo(() => {
-        if (!groupCol || !emissionKey) return [];
+        if (!emissionKey) return [];
+
         const map = new Map<string, number>();
-        filteredRows.forEach((r) => {
-            const cat = r[groupCol.key]?.trim() || 'Other';
-            const val = parseFloat(r[emissionKey] ?? '0');
-            map.set(cat, (map.get(cat) ?? 0) + (isNaN(val) ? 0 : val));
-        });
-        return Array.from(map.entries()).map(([name, value], i) => ({
-            name,
-            value,
-            fill: CHART_COLORS[i % CHART_COLORS.length],
-            color: CHART_COLORS[i % CHART_COLORS.length],
-        }));
-    }, [filteredRows, groupCol, emissionKey]);
+
+        if (chartGroupBy === 'year') {
+            // Group by Reporting Year
+            filteredRows.forEach((r) => {
+                const year = r['Reporting Year']?.trim() || 'Unknown';
+                const val = parseFloat(r[emissionKey] ?? '0');
+                map.set(year, (map.get(year) ?? 0) + (isNaN(val) ? 0 : val));
+            });
+            // Sort by year
+            const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+            return sorted.map(([name, value], i) => ({
+                name,
+                value,
+                fill: CHART_COLORS[i % CHART_COLORS.length],
+                color: CHART_COLORS[i % CHART_COLORS.length],
+            }));
+        } else {
+            // Group by Month
+            filteredRows.forEach((r) => {
+                const month = r['Month']?.trim() || 'Unknown';
+                const val = parseFloat(r[emissionKey] ?? '0');
+                map.set(month, (map.get(month) ?? 0) + (isNaN(val) ? 0 : val));
+            });
+            // Sort by month number
+            const sorted = Array.from(map.entries()).sort((a, b) => {
+                const na = getMonthNumber(a[0]);
+                const nb = getMonthNumber(b[0]);
+                return na.localeCompare(nb);
+            });
+            return sorted.map(([name, value], i) => ({
+                name: getMonthLabel(name),
+                value,
+                fill: CHART_COLORS[i % CHART_COLORS.length],
+                color: CHART_COLORS[i % CHART_COLORS.length],
+            }));
+        }
+    }, [filteredRows, emissionKey, chartGroupBy]);
 
     const totalEmission = filteredTotals[emissionKey] ?? 0;
 
@@ -148,18 +164,52 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
 
             {/* Charts */}
             {chartGrouped.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    <EmissionBarChart
-                        data={chartGrouped}
-                        loading={loading}
-                        isEmpty={totalEmission === 0}
-                    />
-                    <EmissionDonutChart
-                        data={chartGrouped}
-                        total={totalEmission}
-                        loading={loading}
-                        isEmpty={totalEmission === 0}
-                    />
+                <div className="space-y-3">
+                    {/* Year / Month toggle */}
+                    <div className="flex items-center gap-1 bg-bg-section rounded-lg p-1 w-fit">
+                        <button
+                            onClick={() => setChartGroupBy('year')}
+                            className={`
+                                flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                transition-all duration-200 cursor-pointer
+                                ${chartGroupBy === 'year'
+                                    ? 'bg-card text-primary shadow-sm'
+                                    : 'text-text-muted hover:text-text-main'
+                                }
+                            `}
+                        >
+                            <Calendar className="w-3.5 h-3.5" />
+                            By Year
+                        </button>
+                        <button
+                            onClick={() => setChartGroupBy('month')}
+                            className={`
+                                flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                transition-all duration-200 cursor-pointer
+                                ${chartGroupBy === 'month'
+                                    ? 'bg-card text-primary shadow-sm'
+                                    : 'text-text-muted hover:text-text-main'
+                                }
+                            `}
+                        >
+                            <CalendarDays className="w-3.5 h-3.5" />
+                            By Month
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <EmissionBarChart
+                            data={chartGrouped}
+                            loading={loading}
+                            isEmpty={totalEmission === 0}
+                        />
+                        <EmissionDonutChart
+                            data={chartGrouped}
+                            total={totalEmission}
+                            loading={loading}
+                            isEmpty={totalEmission === 0}
+                        />
+                    </div>
                 </div>
             )}
         </div>

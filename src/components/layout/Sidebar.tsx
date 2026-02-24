@@ -11,6 +11,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { SCOPE1_TABS } from '@/const/scope1Columns';
+import { SCOPE2_TABS } from '@/const/scope2Columns';
 
 /* ── Nav structure ──────────────────────────────────────── */
 
@@ -39,7 +40,16 @@ const navItems: NavItem[] = [
             icon: tab.icon,
         })),
     },
-    { to: '/scope-2', label: 'Scope 2', icon: Zap },
+    {
+        to: '/scope-2',
+        label: 'Scope 2',
+        icon: Zap,
+        children: SCOPE2_TABS.map((tab) => ({
+            to: `/scope-2/${tab.key}`,
+            label: tab.label,
+            icon: tab.icon,
+        })),
+    },
     { to: '/scope-3', label: 'Scope 3', icon: Globe },
 ];
 
@@ -49,8 +59,10 @@ export default function Sidebar() {
 
     // Track which parent sections are expanded
     const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-        // Auto-expand Scope 1 if we're on a scope-1 sub-route
-        return { '/scope-1': location.pathname.startsWith('/scope-1') };
+        return {
+            '/scope-1': location.pathname.startsWith('/scope-1'),
+            '/scope-2': location.pathname.startsWith('/scope-2'),
+        };
     });
 
     const toggleExpand = (key: string) => {
