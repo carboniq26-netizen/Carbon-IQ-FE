@@ -1,4 +1,4 @@
-import { Zap } from 'lucide-react';
+import { Zap, Sun } from 'lucide-react';
 import { type ColumnDef, type SubTabConfig } from '../types/types';
 
 /* ─────────────────────────────────────────────────────────
@@ -26,6 +26,13 @@ const ELECTRICITY_COLUMNS: ColumnDef[] = [
 ];
 
 /* ─────────────────────────────────────────────────────────
+   Column definitions — Scope 2: Solar Power Generated
+   (Placeholder — columns will be updated when sheet is ready)
+   ───────────────────────────────────────────────────────── */
+
+const SOLAR_POWER_COLUMNS: ColumnDef[] = [];
+
+/* ─────────────────────────────────────────────────────────
    Sub-tab configurations for Scope 2
    ───────────────────────────────────────────────────────── */
 
@@ -38,5 +45,14 @@ export const SCOPE2_TABS: SubTabConfig[] = [
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100',
         columns: ELECTRICITY_COLUMNS,
+    },
+    {
+        key: 'solar-power',
+        label: 'Solar Power Generated',
+        sheetName: 'Scope2_Solar_Power_Generated',
+        icon: Sun,
+        color: 'text-orange-500',
+        bgColor: 'bg-orange-100',
+        columns: SOLAR_POWER_COLUMNS,
     },
 ];

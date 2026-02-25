@@ -21,6 +21,26 @@ const CHART_COLORS = [
 type ChartGroupBy = 'year' | 'month';
 
 export function SubTabDashboard({ tab }: SubTabDashboardProps) {
+    /* ── Empty-columns guard: show placeholder ────── */
+    if (tab.columns.length === 0) {
+        const Icon = tab.icon;
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <Icon className={`w-6 h-6 ${tab.color}`} />
+                    <h2 className="text-xl font-bold text-text-main">{tab.label}</h2>
+                </div>
+                <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-border bg-bg-section/50">
+                    <Icon className="w-12 h-12 text-text-muted mb-4" />
+                    <h3 className="text-lg font-semibold text-text-main mb-1">Coming Soon</h3>
+                    <p className="text-sm text-text-muted text-center max-w-md">
+                        {tab.label} data will be displayed here once the data sheet is configured.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     const {
         loading,
         availableYears,

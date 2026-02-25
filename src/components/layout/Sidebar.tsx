@@ -6,6 +6,7 @@ import {
     Flame,
     Zap,
     Globe,
+    Leaf,
     ChevronLeft,
     ChevronRight,
     ChevronDown,
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
         })),
     },
     { to: '/scope-3', label: 'Scope 3', icon: Globe },
+    { to: '/biogenics', label: 'Biogenics', icon: Leaf },
 ];
 
 export default function Sidebar() {
@@ -88,8 +90,8 @@ export default function Sidebar() {
                         <h1 className="text-lg text-red-900 font-bold tracking-tight ">
                             Carbon IQ
                         </h1>
-                        <p className="text-[10px] font-medium text-text-muted">
-                            Solution for Expected
+                        <p className="text-[10px] font-medium text-text-muted text-wrap">
+                            Campus Carbon, Simplified, replacing
                         </p>
                     </div>
                 )}

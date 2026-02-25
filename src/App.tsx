@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Scope1SubTab from './pages/Scope1SubTab';
 import Scope2SubTab from './pages/Scope2SubTab';
 import Scope3 from './pages/Scope3';
+import Biogenics from './pages/Biogenics';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/scope-2" element={<Scope2SubTab />} />
           <Route path="/scope-2/:subTab" element={<Scope2SubTab />} />
           <Route path="/scope-3" element={<Scope3 />} />
+          <Route path="/biogenics" element={<Biogenics />} />
         </Route>
       </Routes>
     </BrowserRouter>
