@@ -1,10 +1,12 @@
 import { type LucideIcon } from 'lucide-react';
 
-export enum Scope {
-    SCOPE_1 = 'SCOPE_1',
-    SCOPE_2 = 'SCOPE_2',
-    SCOPE_3 = 'SCOPE_3',
-}
+export const Scope = {
+    SCOPE_1: 'SCOPE_1',
+    SCOPE_2: 'SCOPE_2',
+    SCOPE_3: 'SCOPE_3',
+} as const;
+
+export type Scope = (typeof Scope)[keyof typeof Scope];
 
 export interface EmissionRecord {
     date: string;
