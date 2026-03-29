@@ -55,7 +55,7 @@ export interface UseSheetDataReturn {
 
 /* ── Main hook ──────────────────────────────────────────── */
 
-export function useSheetData(sheetName: string, columns: ColumnDef[], computeFields?: ComputeField[]): UseSheetDataReturn {
+export function useSheetData(sheetName: string, columns: ColumnDef[], computeFields?: ComputeField[], sheetId?: string): UseSheetDataReturn {
     const [rows, setRows] = useState<SheetRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -70,10 +70,11 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
         setLoading(true);
         setError(null);
 
-        const url = getSheetCsvUrl(sheetName);
+        const url = getSheetCsvUrl(sheetName, sheetId);
         Papa.parse<Record<string, string>>(url, {
             download: true,
             header: true,
+            transformHeader: (h) => h.trim(),
             skipEmptyLines: true,
             complete: (results) => {
                 try {
@@ -104,7 +105,7 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
                 setLoading(false);
             },
         });
-    }, [sheetName, computeFields]);
+    }, [sheetName, sheetId, computeFields]);
 
     useEffect(() => {
         fetchData();

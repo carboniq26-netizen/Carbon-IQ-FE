@@ -71,10 +71,11 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
 
             const promises = ALL_CONFIGS.map(({ tab, scope }) => {
                 return new Promise<void>((resolve) => {
-                    const url = getSheetCsvUrl(tab.sheetName);
+                    const url = getSheetCsvUrl(tab.sheetName, tab.sheetId);
                     Papa.parse<Record<string, string>>(url, {
                         download: true,
                         header: true,
+                        transformHeader: (h) => h.trim(),
                         skipEmptyLines: true,
                         complete: (results) => {
                             const cleaned = results.data.filter((row) =>

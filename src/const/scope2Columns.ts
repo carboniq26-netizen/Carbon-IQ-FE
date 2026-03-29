@@ -1,5 +1,5 @@
-import { Zap, Sun } from 'lucide-react';
-import { type ColumnDef, type SubTabConfig } from '../types/types';
+import { Zap } from 'lucide-react';
+import { type ColumnDef, type SubTabConfig, type ComputeField } from '../types/types';
 
 /* ─────────────────────────────────────────────────────────
    Column definitions — Scope 2: Purchased Electricity
@@ -10,31 +10,44 @@ import { type ColumnDef, type SubTabConfig } from '../types/types';
 const ELECTRICITY_COLUMNS: ColumnDef[] = [
     { key: 'Reporting Year', label: 'Year', type: 'text' },
     { key: 'Month', label: 'Month', type: 'text' },
-    { key: 'Meter ID', label: 'Meter ID', type: 'text' },
-    { key: 'Building/Location', label: 'Location', type: 'text' },
-    { key: 'Electricity Provider', label: 'Provider', type: 'text' },
-    { key: 'Tariff Category (HT/LT)', label: 'Tariff', type: 'text' },
-    { key: 'Electricity Consumed (kWh)', label: 'Electricity Consumed', type: 'numeric', showInCard: true, unit: 'kWh' },
-    { key: 'On-site Solar Generation (kWh) (Optional)', label: 'Solar Generation', type: 'numeric', showInCard: true, unit: 'kWh' },
-    { key: 'Net Grid Electricity (kWh)', label: 'Net Grid Electricity', type: 'numeric', showInCard: true, unit: 'kWh' },
-    { key: 'Grid Emission Factor (kg CO2e/kWh)', label: 'Grid Emission Factor', type: 'numeric', showInCard: true, unit: 'kg CO₂e/kWh' },
-    { key: 'Calculated Emissions (kg CO2e)', label: 'Emissions (kg)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Calculated Emissions (tCO2e)', label: 'Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
-    { key: 'Scope 2 Method (Location-Based/Market-Based)', label: 'Scope 2 Method', type: 'text' },
-    { key: 'Data Source (Electricity Bill/Meter Reading)', label: 'Data Source', type: 'text' },
-    { key: 'Remarks', label: 'Remarks', type: 'text' },
+    { key: 'Building', label: 'Building', type: 'text' },
+    { key: 'Departments/Areas', label: 'Departments/Areas', type: 'text' },
+    { key: 'Electricity Consumed in KWh', label: 'Consumed', type: 'numeric', showInCard: true, unit: 'kWh' },
+    { key: 'Emission Factor (KgCO2e/KWh)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/kWh' },
+    { key: 'Solar Generation (kWh)', label: 'Solar Generated', type: 'numeric', unit: 'kWh' },
+    { key: 'Net Grid Electricity (kWh)', label: 'Net Grid Electricity', type: 'numeric', unit: 'kWh' },
+    { key: 'Final Emissions (kg CO2e)', label: 'Final Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Gross Emissions (kg CO2e)', label: 'Gross Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
 ];
 
-/* ─────────────────────────────────────────────────────────
-   Column definitions — Scope 2: Solar Power Generated
-   (Placeholder — columns will be updated when sheet is ready)
-   ───────────────────────────────────────────────────────── */
-
-const SOLAR_POWER_COLUMNS: ColumnDef[] = [];
-
-/* ─────────────────────────────────────────────────────────
-   Sub-tab configurations for Scope 2
-   ───────────────────────────────────────────────────────── */
+const ELECTRICITY_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'Net Grid Electricity (kWh)',
+        formula: (row: Record<string, string>) => {
+            const consumed = parseFloat(row['Electricity Consumed in KWh'] ?? '0');
+            const solar = parseFloat(row['Solar Generation (kWh)'] ?? '0');
+            return Math.max(0, (isNaN(consumed) ? 0 : consumed) - (isNaN(solar) ? 0 : solar));
+        }
+    },
+    {
+        targetKey: 'Gross Emissions (kg CO2e)',
+        formula: (row: Record<string, string>) => {
+            const consumed = parseFloat(row['Electricity Consumed in KWh'] ?? '0');
+            const ef = parseFloat(row['Emission Factor (KgCO2e/KWh)'] ?? '0');
+            return (isNaN(consumed) ? 0 : consumed) * (isNaN(ef) ? 0 : ef);
+        }
+    },
+    {
+        targetKey: 'Final Emissions (kg CO2e)',
+        formula: (row: Record<string, string>) => {
+            const consumed = parseFloat(row['Electricity Consumed in KWh'] ?? '0');
+            const solar = parseFloat(row['Solar Generation (kWh)'] ?? '0');
+            const ef = parseFloat(row['Emission Factor (KgCO2e/KWh)'] ?? '0');
+            const net = Math.max(0, (isNaN(consumed) ? 0 : consumed) - (isNaN(solar) ? 0 : solar));
+            return net * (isNaN(ef) ? 0 : ef);
+        }
+    }
+];
 
 export const SCOPE2_TABS: SubTabConfig[] = [
     {
@@ -45,14 +58,7 @@ export const SCOPE2_TABS: SubTabConfig[] = [
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100',
         columns: ELECTRICITY_COLUMNS,
-    },
-    {
-        key: 'solar-power',
-        label: 'Solar Power Generated',
-        sheetName: 'Scope2_Solar_Power_Generated',
-        icon: Sun,
-        color: 'text-orange-500',
-        bgColor: 'bg-orange-100',
-        columns: SOLAR_POWER_COLUMNS,
-    },
+        computeFields: ELECTRICITY_COMPUTE_FIELDS,
+        filterColumns: ['Building'],
+    }
 ];

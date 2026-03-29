@@ -1,4 +1,4 @@
-import { Trash2, Droplets, CarFront } from 'lucide-react';
+import { Trash2, Droplets, CarFront, Building, Flame } from 'lucide-react';
 import { type ColumnDef, type SubTabConfig, type ComputeField } from '../types/types';
 
 /* ─────────────────────────────────────────────────────────
@@ -160,6 +160,144 @@ const COMMUTING_COMPUTE_FIELDS: ComputeField[] = [
 ];
 
 /* ─────────────────────────────────────────────────────────
+   Column definitions — Embodied Emissions
+   ───────────────────────────────────────────────────────── */
+
+const EMBODIED_EMISSIONS_COLUMNS: ColumnDef[] = [
+    { key: 'Reporting Year', label: 'Year', type: 'text' },
+    { key: 'Building ID', label: 'Building ID', type: 'text' },
+    { key: 'Building Name', label: 'Building Name', type: 'text' },
+    { key: 'Year of Construction', label: 'Year Built', type: 'text' },
+    { key: 'Built-up Area (m2)', label: 'Built-up Area (m²)', type: 'numeric' },
+    { key: 'Area Emission Factor (Kg CO2e/m2/year)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/m²' },
+    { key: 'Assumed Building Lifetime (Years)', label: 'Lifetime (Years)', type: 'numeric', unit: 'Years' },
+    { key: 'Annualised Emissions (kg CO2e)', label: 'Annualised Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Annualised Emissions (tCO2e)', label: 'Annualised (tCO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+    { key: 'Total Embodied Emissions (kg CO2e)', label: 'Total Embodied', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Total Embodied Emissions (tCO2e)', label: 'Total (tCO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+];
+
+const EMBODIED_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'Total Embodied Emissions (kg CO2e)',
+        formula: (row: Record<string, string>) => {
+             const area = parseFloat(row['Built-up Area (m2)'] ?? '0');
+             const ef = parseFloat(row['Area Emission Factor (Kg CO2e/m2/year)'] ?? '0');
+             return (isNaN(area) ? 0 : area) * (isNaN(ef) ? 0 : ef);
+        }
+    },
+    {
+        targetKey: 'Total Embodied Emissions (tCO2e)',
+        formula: (row: Record<string, string>) => {
+             const area = parseFloat(row['Built-up Area (m2)'] ?? '0');
+             const ef = parseFloat(row['Area Emission Factor (Kg CO2e/m2/year)'] ?? '0');
+             return ((isNaN(area) ? 0 : area) * (isNaN(ef) ? 0 : ef)) / 1000;
+        }
+    },
+    {
+        targetKey: 'Annualised Emissions (kg CO2e)',
+        formula: (row: Record<string, string>) => {
+             const area = parseFloat(row['Built-up Area (m2)'] ?? '0');
+             const ef = parseFloat(row['Area Emission Factor (Kg CO2e/m2/year)'] ?? '0');
+             const embodiedKg = (isNaN(area) ? 0 : area) * (isNaN(ef) ? 0 : ef);
+             
+             const lifetime = parseFloat(row['Assumed Building Lifetime (Years)'] ?? '150');
+             const validLifetime = isNaN(lifetime) || lifetime <= 0 ? 150 : lifetime;
+             
+             return embodiedKg / validLifetime;
+        }
+    },
+    {
+        targetKey: 'Annualised Emissions (tCO2e)',
+        formula: (row: Record<string, string>) => {
+             const area = parseFloat(row['Built-up Area (m2)'] ?? '0');
+             const ef = parseFloat(row['Area Emission Factor (Kg CO2e/m2/year)'] ?? '0');
+             const embodiedKg = (isNaN(area) ? 0 : area) * (isNaN(ef) ? 0 : ef);
+             
+             const lifetime = parseFloat(row['Assumed Building Lifetime (Years)'] ?? '150');
+             const validLifetime = isNaN(lifetime) || lifetime <= 0 ? 150 : lifetime;
+             
+             return (embodiedKg / validLifetime) / 1000;
+        }
+    }
+];
+
+/* ─────────────────────────────────────────────────────────
+   Column definitions — Biogas
+   ───────────────────────────────────────────────────────── */
+
+const BIOGAS_COLUMNS: ColumnDef[] = [
+    { key: 'Reporting Year', label: 'Year', type: 'text' },
+    { key: 'Month', label: 'Month', type: 'text' },
+    { key: 'Biogas Plant ID', label: 'Biogas Plant ID', type: 'text' },
+    { key: 'Food Waste Processed (Tonnes)', label: 'Food Waste Processed', type: 'numeric', showInCard: true, unit: 't' },
+    { key: 'Biogas Produced (m3)', label: 'Biogas Produced', type: 'numeric', showInCard: true, unit: 'm³' },
+    { key: 'LPG Saved = Biogas × 0.43', label: 'LPG Saved', type: 'numeric', unit: 'kg' },
+    { key: 'CO2e avoided = LPG saved × 3.0', label: 'CO₂e Avoided', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Net Emissions (kg CO2e)', label: 'Net Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'NetCO2e (tCOe2) = CO2eAD − CO2e avoided', label: 'Net Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+    { key: 'Emissions in KgCO2e', label: 'Gross Emissions (kg)', type: 'numeric', unit: 'kg CO₂e' },
+    { key: 'Emissions (tCO2e)', label: 'Gross Emissions (t)', type: 'numeric', unit: 'tCO₂e' }
+];
+
+const BIOGAS_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'LPG Saved = Biogas × 0.43',
+        formula: (row) => {
+             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
+             return (isNaN(biogas) ? 0 : biogas) * 0.43;
+        }
+    },
+    {
+        targetKey: 'CO2e avoided = LPG saved × 3.0',
+        formula: (row) => {
+             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
+             return ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
+        }
+    },
+    {
+        targetKey: 'Emissions in KgCO2e',
+        formula: (row) => {
+             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
+             const waste = isNaN(w) ? 0 : w;
+             // Formula: W(tonnes)*1000 * VS(0.85) * Bo(0.6) * MCF(1) * (1-CE)(0.1) * 0.67 * 28
+             return (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
+        }
+    },
+    {
+        targetKey: 'Emissions (tCO2e)',
+        formula: (row) => {
+             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
+             const waste = isNaN(w) ? 0 : w;
+             const grossKg = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
+             return grossKg / 1000;
+        }
+    },
+    {
+        targetKey: 'Net Emissions (kg CO2e)',
+        formula: (row) => {
+             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
+             const avoided = ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
+             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
+             const waste = isNaN(w) ? 0 : w;
+             const gross = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
+             return gross - avoided;
+        }
+    },
+    {
+        targetKey: 'NetCO2e (tCOe2) = CO2eAD − CO2e avoided',
+        formula: (row) => {
+             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
+             const avoided = ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
+             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
+             const waste = isNaN(w) ? 0 : w;
+             const gross = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
+             return (gross - avoided) / 1000;
+        }
+    }
+];
+
+/* ─────────────────────────────────────────────────────────
    Sub-tab configurations for Scope 3
    ───────────────────────────────────────────────────────── */
 
@@ -174,6 +312,28 @@ export const SCOPE3_TABS: SubTabConfig[] = [
         columns: GARDEN_WASTE_COLUMNS,
         computeFields: GARDEN_WASTE_COMPUTE_FIELDS,
         filterColumns: ['Waste Source Location'],
+    },
+    {
+        key: 'embodied-emissions',
+        label: 'Embodied Emissions',
+        sheetName: 'Scope 3_Embodied Emissions',
+        icon: Building,
+        color: 'text-zinc-600',
+        bgColor: 'bg-zinc-100',
+        columns: EMBODIED_EMISSIONS_COLUMNS,
+        computeFields: EMBODIED_COMPUTE_FIELDS,
+        filterColumns: ['Building Name'],
+    },
+    {
+        key: 'biogas',
+        label: 'Biogas',
+        sheetName: 'Scope 3_Biogas',
+        icon: Flame,
+        color: 'text-orange-500',
+        bgColor: 'bg-orange-100',
+        columns: BIOGAS_COLUMNS,
+        computeFields: BIOGAS_COMPUTE_FIELDS,
+        filterColumns: ['Biogas Plant ID'],
     },
     {
         key: 'stp',

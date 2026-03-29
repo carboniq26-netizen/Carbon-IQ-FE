@@ -51,9 +51,15 @@ export interface SubTabConfig {
     key: string;
     label: string;
     sheetName: string;
+    sheetId?: string; // Optional override for the Google Sheet ID
+    rawDataTableOverride?: {
+        sheetId: string;
+        sheetName: string;
+    };
     icon: LucideIcon;
     color: string;
     bgColor: string;
+    chartTargetKey?: string; // If specified, charts will group this key instead of defaulting to emissions
     columns: ColumnDef[];
     /** Optional computed columns derived client-side from raw data */
     computeFields?: ComputeField[];

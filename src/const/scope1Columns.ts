@@ -168,8 +168,12 @@ const FUGITIVE_COMPUTE_FIELDS: ComputeField[] = [
 export const SCOPE1_TABS: SubTabConfig[] = [
     {
         key: 'dg-data',
-        label: 'DG Data',
+        label: 'DG Set',
         sheetName: 'Scope1_DG_Set_Data',
+        rawDataTableOverride: {
+            sheetId: '1O4SWPoYaZcY2v0TGW2C98q0X5NB0FjG65fTExvqyvpI',
+            sheetName: 'Scope 1_DG Data Set'
+        },
         icon: Fuel,
         color: 'text-orange-600',
         bgColor: 'bg-orange-100',
