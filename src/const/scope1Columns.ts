@@ -146,18 +146,43 @@ const FUGITIVE_COMPUTE_FIELDS: ComputeField[] = [
     {
         targetKey: 'Calculated Emissions (kg CO2e)',
         formula: (row) => {
-            const refilled = parseFloat(row['Refrigerant Refilled During Year (kg)'] ?? '0');
-            const gwp = parseFloat(row['GWP of Refrigerant'] ?? '0');
-            return isNaN(refilled) || isNaN(gwp) ? 0 : refilled * gwp;
+            const refilledStr = row['Refrigerant Refilled During Year (kg)'] ?? '0';
+            const gwpStr = row['GWP of Refrigerant'] ?? '0';
+            
+            const refilledArr = refilledStr.split(',').map(s => parseFloat(s.trim()));
+            const gwpArr = gwpStr.split(',').map(s => parseFloat(s.trim()));
+            
+            let total = 0;
+            const len = Math.max(refilledArr.length, gwpArr.length);
+            for (let i = 0; i < len; i++) {
+                const r = refilledArr[i] || 0;
+                const g = gwpArr[i] || 0;
+                if (!isNaN(r) && !isNaN(g)) {
+                    total += r * g;
+                }
+            }
+            return total;
         },
     },
     {
         targetKey: 'Calculated Emissions (tCO2e)',
         formula: (row) => {
-            const refilled = parseFloat(row['Refrigerant Refilled During Year (kg)'] ?? '0');
-            const gwp = parseFloat(row['GWP of Refrigerant'] ?? '0');
-            const kgEmission = isNaN(refilled) || isNaN(gwp) ? 0 : refilled * gwp;
-            return kgEmission / 1000;
+            const refilledStr = row['Refrigerant Refilled During Year (kg)'] ?? '0';
+            const gwpStr = row['GWP of Refrigerant'] ?? '0';
+            
+            const refilledArr = refilledStr.split(',').map(s => parseFloat(s.trim()));
+            const gwpArr = gwpStr.split(',').map(s => parseFloat(s.trim()));
+            
+            let total = 0;
+            const len = Math.max(refilledArr.length, gwpArr.length);
+            for (let i = 0; i < len; i++) {
+                const r = refilledArr[i] || 0;
+                const g = gwpArr[i] || 0;
+                if (!isNaN(r) && !isNaN(g)) {
+                    total += r * g;
+                }
+            }
+            return total / 1000;
         },
     },
 ];
