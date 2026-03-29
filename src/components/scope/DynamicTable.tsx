@@ -103,7 +103,13 @@ export function DynamicTable({ columns, rows, loading, error }: DynamicTableProp
                                     );
                                 }
                                 const total = rows.reduce((sum, r) => {
-                                    const v = parseFloat(r[col.key] ?? '');
+                                    const raw = r[col.key] ?? '';
+                                    if (raw.includes(',')) {
+                                        const parts = raw.split(',').map((s) => parseFloat(s.trim()));
+                                        const rowSum = parts.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
+                                        return sum + rowSum;
+                                    }
+                                    const v = parseFloat(raw);
                                     return sum + (isNaN(v) ? 0 : v);
                                 }, 0);
                                 return (
