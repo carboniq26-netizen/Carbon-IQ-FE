@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { LayoutDashboard } from 'lucide-react';
-import { useEmissionData, getMonthName } from '../hooks/useEmissionData';
+import { useAggregatedEmissions, getMonthName } from '../hooks/useAggregatedEmissions';
 import { Scope } from '../types/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import type { MultiSelectOption } from '@/components/ui/multi-select';
@@ -12,16 +12,17 @@ const SCOPE_COLORS = {
     [Scope.SCOPE_1]: '#EF4444',
     [Scope.SCOPE_2]: '#F59E0B',
     [Scope.SCOPE_3]: '#3B82F6',
+    [Scope.BIOGENICS]: '#16A34A',
 };
 
 export default function Dashboard() {
     const {
         loading,
         getFilteredScopeTotal,
-        getFilteredTotalEmission,
+        getFilteredTotal: getFilteredTotalEmission,
         availableYears,
         getAvailableMonths,
-    } = useEmissionData();
+    } = useAggregatedEmissions();
 
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
@@ -43,17 +44,20 @@ export default function Dashboard() {
     const scope1Total = getFilteredScopeTotal(Scope.SCOPE_1, years, months);
     const scope2Total = getFilteredScopeTotal(Scope.SCOPE_2, years, months);
     const scope3Total = getFilteredScopeTotal(Scope.SCOPE_3, years, months);
+    const biogenicsTotal = getFilteredScopeTotal(Scope.BIOGENICS, years, months);
 
     const barData = [
         { name: 'Scope 1', value: scope1Total, fill: SCOPE_COLORS[Scope.SCOPE_1] },
         { name: 'Scope 2', value: scope2Total, fill: SCOPE_COLORS[Scope.SCOPE_2] },
         { name: 'Scope 3', value: scope3Total, fill: SCOPE_COLORS[Scope.SCOPE_3] },
+        { name: 'Biogenics', value: biogenicsTotal, fill: SCOPE_COLORS[Scope.BIOGENICS] },
     ];
 
     const pieData = [
         { name: 'Scope 1', value: scope1Total, color: SCOPE_COLORS[Scope.SCOPE_1] },
         { name: 'Scope 2', value: scope2Total, color: SCOPE_COLORS[Scope.SCOPE_2] },
         { name: 'Scope 3', value: scope3Total, color: SCOPE_COLORS[Scope.SCOPE_3] },
+        { name: 'Biogenics', value: biogenicsTotal, color: SCOPE_COLORS[Scope.BIOGENICS] },
     ].filter((d) => d.value > 0);
 
     const handleYearChange = (values: string[]) => {
@@ -114,6 +118,7 @@ export default function Dashboard() {
                 scope1Total={scope1Total}
                 scope2Total={scope2Total}
                 scope3Total={scope3Total}
+                biogenicsTotal={biogenicsTotal}
                 loading={loading}
             />
 

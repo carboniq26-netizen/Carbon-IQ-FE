@@ -21,6 +21,9 @@ const CHART_COLORS = [
 type ChartGroupBy = 'year' | 'month';
 
 export function SubTabDashboard({ tab }: SubTabDashboardProps) {
+    /* ── Does this tab have a Month column? ──────── */
+    const hasMonthColumn = tab.columns.some((c) => c.key === 'Month');
+
     /* ── Empty-columns guard: show placeholder ────── */
     if (tab.columns.length === 0) {
         const Icon = tab.icon;
@@ -45,19 +48,29 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         loading,
         availableYears,
         getAvailableMonths,
+        getAvailableValues,
         getFilteredRows,
         getFilteredTotals,
-    } = useSheetData(tab.sheetName, tab.columns);
+    } = useSheetData(tab.sheetName, tab.columns, tab.computeFields);
 
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
     const [chartGroupBy, setChartGroupBy] = useState<ChartGroupBy>('year');
 
+    /* ── Extra filters state (keyed by column key) ── */
+    const extraFilterKeys = tab.filterColumns ?? [];
+    const [extraFilters, setExtraFilters] = useState<Record<string, string[]>>({});
+
+    const updateExtraFilter = (key: string, values: string[]) => {
+        setExtraFilters((prev) => ({ ...prev, [key]: values }));
+    };
+
     const years = selectedYears.length > 0 ? selectedYears : undefined;
     const months = selectedMonths.length > 0 ? selectedMonths : undefined;
+    const activeExtra = extraFilterKeys.length > 0 ? extraFilters : undefined;
 
-    const filteredRows = getFilteredRows(years, months);
-    const filteredTotals = getFilteredTotals(years, months);
+    const filteredRows = getFilteredRows(years, months, activeExtra);
+    const filteredTotals = getFilteredTotals(years, months, activeExtra);
 
     /* ── Dropdown options ──────────────────────────── */
     const yearOptions: MultiSelectOption[] = useMemo(
@@ -87,7 +100,7 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     /* ── Chart data — group by Year or Month ──────── */
 
     const emissionKey =
-        tab.columns.find((c) => c.key.includes('Calculated Emissions (kg CO2e)'))?.key ?? '';
+        tab.columns.find((c) => c.key.includes('Emissions (kg CO2e)'))?.key ?? '';
 
     const chartGrouped = useMemo(() => {
         if (!emissionKey) return [];
@@ -138,8 +151,18 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         const parts: string[] = [];
         if (selectedYears.length > 0) parts.push(selectedYears.join(', '));
         if (selectedMonths.length > 0) parts.push(selectedMonths.map(getMonthLabel).join(', '));
+        extraFilterKeys.forEach((key) => {
+            const vals = extraFilters[key];
+            if (vals && vals.length > 0) parts.push(vals.join(', '));
+        });
         return parts.length > 0 ? parts.join(' · ') : 'All Time';
-    }, [selectedYears, selectedMonths]);
+    }, [selectedYears, selectedMonths, extraFilters, extraFilterKeys]);
+
+    /* ── Helper: get short label for a filter column ── */
+    const getFilterLabel = (colKey: string) => {
+        const col = tab.columns.find((c) => c.key === colKey);
+        return col ? `All ${col.label}s` : `All`;
+    };
 
     return (
         <div className="space-y-6">
@@ -155,7 +178,7 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                     </p>
                 </div>
 
-                <div className="flex cursor-pointer gap-2">
+                <div className="flex cursor-pointer gap-2 flex-wrap">
                     <MultiSelect
                         options={yearOptions}
                         selected={selectedYears}
@@ -163,13 +186,31 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                         placeholder="All Years"
                         className="cursor-pointer"
                     />
-                    <MultiSelect
-                        options={monthOptions}
-                        selected={selectedMonths}
-                        onChange={setSelectedMonths}
-                        placeholder="All Months"
-                        disabled={selectedYears.length === 0}
-                    />
+                    {hasMonthColumn && (
+                        <MultiSelect
+                            options={monthOptions}
+                            selected={selectedMonths}
+                            onChange={setSelectedMonths}
+                            placeholder="All Months"
+                            disabled={selectedYears.length === 0}
+                        />
+                    )}
+                    {/* Extra filter dropdowns */}
+                    {extraFilterKeys.map((colKey) => {
+                        const options: MultiSelectOption[] = getAvailableValues(colKey).map((v) => ({
+                            value: v,
+                            label: v,
+                        }));
+                        return (
+                            <MultiSelect
+                                key={colKey}
+                                options={options}
+                                selected={extraFilters[colKey] ?? []}
+                                onChange={(vals) => updateExtraFilter(colKey, vals)}
+                                placeholder={getFilterLabel(colKey)}
+                            />
+                        );
+                    })}
                 </div>
             </div>
 
@@ -185,37 +226,39 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
             {/* Charts */}
             {chartGrouped.length > 0 && (
                 <div className="space-y-3">
-                    {/* Year / Month toggle */}
-                    <div className="flex items-center gap-1 bg-bg-section rounded-lg p-1 w-fit">
-                        <button
-                            onClick={() => setChartGroupBy('year')}
-                            className={`
-                                flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
-                                transition-all duration-200 cursor-pointer
-                                ${chartGroupBy === 'year'
-                                    ? 'bg-card text-primary shadow-sm'
-                                    : 'text-text-muted hover:text-text-main'
-                                }
-                            `}
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            By Year
-                        </button>
-                        <button
-                            onClick={() => setChartGroupBy('month')}
-                            className={`
-                                flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
-                                transition-all duration-200 cursor-pointer
-                                ${chartGroupBy === 'month'
-                                    ? 'bg-card text-primary shadow-sm'
-                                    : 'text-text-muted hover:text-text-main'
-                                }
-                            `}
-                        >
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            By Month
-                        </button>
-                    </div>
+                    {/* Year / Month toggle (only when Month column exists) */}
+                    {hasMonthColumn && (
+                        <div className="flex items-center gap-1 bg-bg-section rounded-lg p-1 w-fit">
+                            <button
+                                onClick={() => setChartGroupBy('year')}
+                                className={`
+                                    flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                    transition-all duration-200 cursor-pointer
+                                    ${chartGroupBy === 'year'
+                                        ? 'bg-card text-primary shadow-sm'
+                                        : 'text-text-muted hover:text-text-main'
+                                    }
+                                `}
+                            >
+                                <Calendar className="w-3.5 h-3.5" />
+                                By Year
+                            </button>
+                            <button
+                                onClick={() => setChartGroupBy('month')}
+                                className={`
+                                    flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                    transition-all duration-200 cursor-pointer
+                                    ${chartGroupBy === 'month'
+                                        ? 'bg-card text-primary shadow-sm'
+                                        : 'text-text-muted hover:text-text-main'
+                                    }
+                                `}
+                            >
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                By Month
+                            </button>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <EmissionBarChart
@@ -235,3 +278,4 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         </div>
     );
 }
+

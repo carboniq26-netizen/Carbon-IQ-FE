@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Papa from 'papaparse';
 import { getSheetCsvUrl } from '../const/constants';
-import { type ColumnDef, type SheetRow } from '../types/types';
+import { type ColumnDef, type SheetRow, type ComputeField } from '../types/types';
 
 /* ── Month helpers ──────────────────────────────────────── */
 
@@ -45,15 +45,17 @@ export interface UseSheetDataReturn {
     availableYears: string[];
     /** Available months (optionally filtered by selected years) */
     getAvailableMonths: (years?: string[]) => string[];
-    /** Rows filtered by year / month */
-    getFilteredRows: (years?: string[], months?: string[]) => SheetRow[];
+    /** Get distinct values for any column key (for extra filter dropdowns) */
+    getAvailableValues: (columnKey: string) => string[];
+    /** Rows filtered by year / month / extra column filters */
+    getFilteredRows: (years?: string[], months?: string[], extraFilters?: Record<string, string[]>) => SheetRow[];
     /** Numeric totals for filtered rows */
-    getFilteredTotals: (years?: string[], months?: string[]) => Record<string, number>;
+    getFilteredTotals: (years?: string[], months?: string[], extraFilters?: Record<string, string[]>) => Record<string, number>;
 }
 
 /* ── Main hook ──────────────────────────────────────────── */
 
-export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetDataReturn {
+export function useSheetData(sheetName: string, columns: ColumnDef[], computeFields?: ComputeField[]): UseSheetDataReturn {
     const [rows, setRows] = useState<SheetRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,16 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
                     const cleaned = results.data.filter((row) =>
                         Object.values(row).some((v) => v && v.trim() !== ''),
                     );
+
+                    // Apply computed fields (client-side formulas)
+                    if (computeFields && computeFields.length > 0) {
+                        cleaned.forEach((row) => {
+                            computeFields.forEach((cf) => {
+                                row[cf.targetKey] = String(cf.formula(row));
+                            });
+                        });
+                    }
+
                     setRows(cleaned);
                 } catch (err) {
                     setError('Failed to parse sheet data.');
@@ -92,7 +104,7 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
                 setLoading(false);
             },
         });
-    }, [sheetName]);
+    }, [sheetName, computeFields]);
 
     useEffect(() => {
         fetchData();
@@ -147,11 +159,24 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
         [rows, yearKey, monthKey],
     );
 
+    const getAvailableValues = useCallback(
+        (columnKey: string): string[] => {
+            const set = new Set<string>();
+            rows.forEach((r) => {
+                const v = r[columnKey]?.trim();
+                if (v) set.add(v);
+            });
+            return Array.from(set).sort();
+        },
+        [rows],
+    );
+
     const getFilteredRows = useCallback(
-        (years?: string[], months?: string[]): SheetRow[] => {
+        (years?: string[], months?: string[], extraFilters?: Record<string, string[]>): SheetRow[] => {
             const hasYears = years && years.length > 0;
             const hasMonths = months && months.length > 0;
-            if (!hasYears && !hasMonths) return rows;
+            const hasExtra = extraFilters && Object.values(extraFilters).some((v) => v.length > 0);
+            if (!hasYears && !hasMonths && !hasExtra) return rows;
 
             return rows.filter((r) => {
                 if (hasYears && yearKey) {
@@ -162,6 +187,14 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
                     const m = r[monthKey]?.trim();
                     if (!months.includes(m)) return false;
                 }
+                if (hasExtra && extraFilters) {
+                    for (const [key, vals] of Object.entries(extraFilters)) {
+                        if (vals.length > 0) {
+                            const v = r[key]?.trim();
+                            if (!vals.includes(v)) return false;
+                        }
+                    }
+                }
                 return true;
             });
         },
@@ -169,8 +202,8 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
     );
 
     const getFilteredTotals = useCallback(
-        (years?: string[], months?: string[]): Record<string, number> =>
-            computeTotals(getFilteredRows(years, months)),
+        (years?: string[], months?: string[], extraFilters?: Record<string, string[]>): Record<string, number> =>
+            computeTotals(getFilteredRows(years, months, extraFilters)),
         [computeTotals, getFilteredRows],
     );
 
@@ -182,6 +215,7 @@ export function useSheetData(sheetName: string, columns: ColumnDef[]): UseSheetD
         numericTotals,
         availableYears,
         getAvailableMonths,
+        getAvailableValues,
         getFilteredRows,
         getFilteredTotals,
     };

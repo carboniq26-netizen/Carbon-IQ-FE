@@ -3,8 +3,9 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Scope1SubTab from './pages/Scope1SubTab';
 import Scope2SubTab from './pages/Scope2SubTab';
-import Scope3 from './pages/Scope3';
+import Scope3SubTab from './pages/Scope3SubTab';
 import Biogenics from './pages/Biogenics';
+import EmissionFactors from './pages/EmissionFactors';
 
 function App() {
   return (
@@ -18,8 +19,11 @@ function App() {
           {/* Scope 2 sub-tab routes */}
           <Route path="/scope-2" element={<Scope2SubTab />} />
           <Route path="/scope-2/:subTab" element={<Scope2SubTab />} />
-          <Route path="/scope-3" element={<Scope3 />} />
+          {/* Scope 3 sub-tab routes */}
+          <Route path="/scope-3" element={<Scope3SubTab />} />
+          <Route path="/scope-3/:subTab" element={<Scope3SubTab />} />
           <Route path="/biogenics" element={<Biogenics />} />
+          <Route path="/emission-factors" element={<EmissionFactors />} />
         </Route>
       </Routes>
     </BrowserRouter>

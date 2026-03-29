@@ -4,6 +4,7 @@ export const Scope = {
     SCOPE_1: 'SCOPE_1',
     SCOPE_2: 'SCOPE_2',
     SCOPE_3: 'SCOPE_3',
+    BIOGENICS: 'BIOGENICS',
 } as const;
 
 export type Scope = (typeof Scope)[keyof typeof Scope];
@@ -38,6 +39,14 @@ export interface ColumnDef {
     unit?: string;
 }
 
+/** Defines a column whose value is computed client-side from other columns */
+export interface ComputeField {
+    /** The column key to write the computed value into */
+    targetKey: string;
+    /** Pure function that receives a row and returns the computed numeric value */
+    formula: (row: Record<string, string>) => number;
+}
+
 export interface SubTabConfig {
     key: string;
     label: string;
@@ -46,7 +55,12 @@ export interface SubTabConfig {
     color: string;
     bgColor: string;
     columns: ColumnDef[];
+    /** Optional computed columns derived client-side from raw data */
+    computeFields?: ComputeField[];
+    /** Optional extra column keys to use as filter dropdowns (beyond Year/Month) */
+    filterColumns?: string[];
 }
 
 /** A single row from any sheet — values keyed by column header */
 export type SheetRow = Record<string, string>;
+

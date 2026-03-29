@@ -10,9 +10,11 @@ import {
     ChevronLeft,
     ChevronRight,
     ChevronDown,
+    BookOpen,
 } from 'lucide-react';
 import { SCOPE1_TABS } from '@/const/scope1Columns';
 import { SCOPE2_TABS } from '@/const/scope2Columns';
+import { SCOPE3_TABS } from '@/const/scope3Columns';
 
 /* ── Nav structure ──────────────────────────────────────── */
 
@@ -51,8 +53,18 @@ const navItems: NavItem[] = [
             icon: tab.icon,
         })),
     },
-    { to: '/scope-3', label: 'Scope 3', icon: Globe },
+    {
+        to: '/scope-3',
+        label: 'Scope 3',
+        icon: Globe,
+        children: SCOPE3_TABS.map((tab) => ({
+            to: `/scope-3/${tab.key}`,
+            label: tab.label,
+            icon: tab.icon,
+        })),
+    },
     { to: '/biogenics', label: 'Biogenics', icon: Leaf },
+    { to: '/emission-factors', label: 'Emission Factors', icon: BookOpen },
 ];
 
 export default function Sidebar() {
@@ -60,11 +72,10 @@ export default function Sidebar() {
     const location = useLocation();
 
     // Track which parent sections are expanded
-    const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-        return {
-            '/scope-1': location.pathname.startsWith('/scope-1'),
-            '/scope-2': location.pathname.startsWith('/scope-2'),
-        };
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({
+        '/scope-1': true,
+        '/scope-2': true,
+        '/scope-3': true,
     });
 
     const toggleExpand = (key: string) => {
@@ -81,16 +92,20 @@ export default function Sidebar() {
             `}
         >
             {/* Brand */}
-            <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
-                <div className="flex items-center justify-center ">
-                    <img src={carbonIQLogo} alt="Carbon IQ" className="w-14 h-14" />
+            <div className={`flex items-center h-16 border-b border-border transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'gap-3 px-5'}`}>
+                <div className="flex items-center justify-center shrink-0">
+                    <img 
+                        src={carbonIQLogo} 
+                        alt="Carbon IQ" 
+                        className={`transition-all duration-300 object-contain shrink-0 ${collapsed ? 'w-10 h-10' : 'w-14 h-14'}`} 
+                    />
                 </div>
                 {!collapsed && (
                     <div className="overflow-hidden whitespace-nowrap">
                         <h1 className="text-lg text-red-900 font-bold tracking-tight ">
                             Carbon IQ
                         </h1>
-                        <p className="text-[10px] font-medium text-text-muted text-wrap">
+                        <p className="text-[10px] font-medium text-text-muted text-wrap leading-tight">
                             Campus Carbon, Simplified, replacing
                         </p>
                     </div>
