@@ -14,6 +14,7 @@ const DG_SET_COLUMNS: ColumnDef[] = [
     { key: 'Reporting Year', label: 'Year', type: 'text' },
     { key: 'Month', label: 'Month', type: 'text' },
     { key: 'DG Set ID', label: 'DG Set ID', type: 'text' },
+    { key: 'Type of DG', label: 'Type of DG', type: 'text' },
     { key: 'Fuel Consumption (Litres)', label: 'Diesel Consumed', type: 'numeric', showInCard: true, unit: 'Litres' },
     { key: 'Emission Factor (kg CO2e/Litre)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/L' },
     { key: 'Calculated Emissions (kg CO2e)', label: 'Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
@@ -179,6 +180,7 @@ export const SCOPE1_TABS: SubTabConfig[] = [
         bgColor: 'bg-orange-100',
         columns: DG_SET_COLUMNS,
         computeFields: DG_SET_COMPUTE_FIELDS,
+        filterColumns: ['Type of DG'],
     },
     {
         key: 'lpg-consumption',
