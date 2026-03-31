@@ -74,19 +74,21 @@ const STP_COMPUTE_FIELDS: ComputeField[] = [
     {
         targetKey: 'Gross Emissions (kg CO2e)',
         formula: (row) => {
-            const q = parseFloat(row['Wastewater Treated (m3)'] ?? '0');
-            const ef = parseFloat(row['EF in kg CO₂e/m³'] ?? '0');
-            const qMonthly = isNaN(q) ? 0 : q / 12;
-            return isNaN(ef) ? 0 : qMonthly * ef;
+            const qStr = row['Wastewater Treated (m3)'] ?? '0';
+            const efStr = row['EF in kg CO₂e/m³'] ?? '0';
+            const q = parseFloat(qStr.replace(/,/g, ''));
+            const ef = parseFloat(efStr.replace(/,/g, ''));
+            return isNaN(q) || isNaN(ef) ? 0 : q * ef;
         },
     },
     {
         targetKey: 'Gross Emissions (tCO2e)',
         formula: (row) => {
-            const q = parseFloat(row['Wastewater Treated (m3)'] ?? '0');
-            const ef = parseFloat(row['EF in kg CO₂e/m³'] ?? '0');
-            const qMonthly = isNaN(q) ? 0 : q / 12;
-            const kgEmission = isNaN(ef) ? 0 : qMonthly * ef;
+            const qStr = row['Wastewater Treated (m3)'] ?? '0';
+            const efStr = row['EF in kg CO₂e/m³'] ?? '0';
+            const q = parseFloat(qStr.replace(/,/g, ''));
+            const ef = parseFloat(efStr.replace(/,/g, ''));
+            const kgEmission = isNaN(q) || isNaN(ef) ? 0 : q * ef;
             return kgEmission / 1000;
         },
     },
@@ -231,70 +233,139 @@ const BIOGAS_COLUMNS: ColumnDef[] = [
     { key: 'Month', label: 'Month', type: 'text' },
     { key: 'Biogas Plant ID', label: 'Biogas Plant ID', type: 'text' },
     { key: 'Food Waste Processed (Tonnes)', label: 'Food Waste Processed', type: 'numeric', showInCard: true, unit: 't' },
-    { key: 'Biogas Produced (m3)', label: 'Biogas Produced', type: 'numeric', showInCard: true, unit: 'm³' },
-    { key: 'LPG Saved = Biogas × 0.43', label: 'LPG Saved', type: 'numeric', unit: 'kg' },
-    { key: 'CO2e avoided = LPG saved × 3.0', label: 'CO₂e Avoided', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Net Emissions (kg CO2e)', label: 'Net Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'NetCO2e (tCOe2) = CO2eAD − CO2e avoided', label: 'Net Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
-    { key: 'Emissions in KgCO2e', label: 'Gross Emissions (kg)', type: 'numeric', unit: 'kg CO₂e' },
-    { key: 'Emissions (tCO2e)', label: 'Gross Emissions (t)', type: 'numeric', unit: 'tCO₂e' }
+    { key: 'CH4 Produced (kg)', label: 'Biogas (Methane) Produced', type: 'numeric', showInCard: true, unit: 'kg' },
+    { key: 'CH4 Utilized (kg)', label: 'Biogas Utilized for Cooking', type: 'numeric', showInCard: true, unit: 'kg' },
+    { key: 'Energy from Biogas (MJ)', label: 'Energy from Biogas', type: 'numeric', showInCard: true, unit: 'MJ' },
+    { key: 'LPG Replaced (kg)', label: 'LPG Equivalent Replaced', type: 'numeric', showInCard: true, unit: 'kg' },
+    { key: 'Avoided CO2 (kg CO2e)', label: 'Avoided Emissions (LPG Replacement)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'CH4 Emissions (kg CO2e)', label: 'Methane Leakage/CH4 Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Net Emissions (kg CO2e)', label: 'Net Climate Impact', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Net Emissions (tCO2e)', label: 'Net Emissions (t)', type: 'numeric', unit: 'tCO₂e' },
 ];
+
+/* ── Updated Biogas Formulae (all derived from W only) ─────
+   Constants:
+     VS = 0.85          Volatile solids
+     Bo = 0.6           Methane potential (m³/kg VS)
+     F  = 0.5           Methane fraction
+     1.33               Conversion factor
+     η  = 0.8           Efficiency
+     GWP(CH₄) = 28
+     CV(CH₄)  = 50 MJ/kg
+     CV(LPG)  = 46 MJ/kg
+     EF(LPG)  = 2.98 kg CO₂/kg
+
+   Part 1: CH₄ Produced      = W × 0.85 × 0.6 × 0.5 × 1.33
+   Part 2: CH₄ Utilized      = CH₄ Produced × 0.8
+   Part 3: Energy from Biogas = CH₄ Utilized × 50
+   Part 4: LPG Replaced       = Energy from Biogas / 46
+   Part 5: Avoided CO₂        = LPG Replaced × 2.98
+   Part 6: CH₄ Emissions      = W × 0.85 × 0.6 × 0.2 × 0.5 × 1.33 × 28
+   Part 7: Net Emissions       = CH₄ Emissions − Avoided CO₂
+   ───────────────────────────────────────────────────────── */
 
 const BIOGAS_COMPUTE_FIELDS: ComputeField[] = [
     {
-        targetKey: 'LPG Saved = Biogas × 0.43',
+        // Part 1: CH₄ Produced = W × VS × Bo × F × 1.33
+        targetKey: 'CH4 Produced (kg)',
         formula: (row) => {
-             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
-             return (isNaN(biogas) ? 0 : biogas) * 0.43;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             return W * 0.85 * 0.6 * 0.5 * 1.33;
         }
     },
     {
-        targetKey: 'CO2e avoided = LPG saved × 3.0',
+        // Part 2: CH₄ Utilized = CH₄ Produced × η(0.8)
+        targetKey: 'CH4 Utilized (kg)',
         formula: (row) => {
-             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
-             return ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             return ch4Produced * 0.8;
         }
     },
     {
-        targetKey: 'Emissions in KgCO2e',
+        // Part 3: Energy from Biogas = CH₄ Utilized × 50 MJ/kg
+        targetKey: 'Energy from Biogas (MJ)',
         formula: (row) => {
-             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
-             const waste = isNaN(w) ? 0 : w;
-             // Formula: W(tonnes)*1000 * VS(0.85) * Bo(0.6) * MCF(1) * (1-CE)(0.1) * 0.67 * 28
-             return (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             const ch4Utilized = ch4Produced * 0.8;
+             return ch4Utilized * 50;
         }
     },
     {
-        targetKey: 'Emissions (tCO2e)',
+        // Part 4: LPG Replaced = Energy from Biogas / 46
+        targetKey: 'LPG Replaced (kg)',
         formula: (row) => {
-             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
-             const waste = isNaN(w) ? 0 : w;
-             const grossKg = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
-             return grossKg / 1000;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             const ch4Utilized = ch4Produced * 0.8;
+             const energyFromBiogas = ch4Utilized * 50;
+             return energyFromBiogas / 46;
         }
     },
     {
+        // Part 5: Avoided CO₂ = LPG Replaced × 2.98
+        targetKey: 'Avoided CO2 (kg CO2e)',
+        formula: (row) => {
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             const ch4Utilized = ch4Produced * 0.8;
+             const energyFromBiogas = ch4Utilized * 50;
+             const lpgReplaced = energyFromBiogas / 46;
+             return lpgReplaced * 2.98;
+        }
+    },
+    {
+        // Part 6: CH₄ Emissions = W × 0.85 × 0.6 × 0.2 × 0.5 × 1.33 × 28
+        targetKey: 'CH4 Emissions (kg CO2e)',
+        formula: (row) => {
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             return W * 0.85 * 0.6 * 0.2 * 0.5 * 1.33 * 28;
+        }
+    },
+    {
+        // Part 7: Net Emissions = CH₄ Emissions − Avoided CO₂
         targetKey: 'Net Emissions (kg CO2e)',
         formula: (row) => {
-             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
-             const avoided = ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
-             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
-             const waste = isNaN(w) ? 0 : w;
-             const gross = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
-             return gross - avoided;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             const ch4Utilized = ch4Produced * 0.8;
+             const energyFromBiogas = ch4Utilized * 50;
+             const lpgReplaced = energyFromBiogas / 46;
+             const avoidedCO2 = lpgReplaced * 2.98;
+             const ch4Emissions = W * 0.85 * 0.6 * 0.2 * 0.5 * 1.33 * 28;
+             return ch4Emissions - avoidedCO2;
         }
     },
     {
-        targetKey: 'NetCO2e (tCOe2) = CO2eAD − CO2e avoided',
+        targetKey: 'Net Emissions (tCO2e)',
         formula: (row) => {
-             const biogas = parseFloat(row['Biogas Produced (m3)'] ?? '0');
-             const avoided = ((isNaN(biogas) ? 0 : biogas) * 0.43) * 3.0;
-             const w = parseFloat(row['Food Waste Processed (Tonnes)'] ?? '0');
-             const waste = isNaN(w) ? 0 : w;
-             const gross = (waste * 1000) * 0.85 * 0.6 * 1 * 0.1 * 0.67 * 28;
-             return (gross - avoided) / 1000;
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             if (isNaN(W)) return 0;
+             const ch4Produced = W * 0.85 * 0.6 * 0.5 * 1.33;
+             const ch4Utilized = ch4Produced * 0.8;
+             const energyFromBiogas = ch4Utilized * 50;
+             const lpgReplaced = energyFromBiogas / 46;
+             const avoidedCO2 = lpgReplaced * 2.98;
+             const ch4Emissions = W * 0.85 * 0.6 * 0.2 * 0.5 * 1.33 * 28;
+             return (ch4Emissions - avoidedCO2) / 1000;
         }
-    }
+    },
 ];
 
 /* ─────────────────────────────────────────────────────────
@@ -311,7 +382,7 @@ export const SCOPE3_TABS: SubTabConfig[] = [
         bgColor: 'bg-green-100',
         columns: GARDEN_WASTE_COLUMNS,
         computeFields: GARDEN_WASTE_COMPUTE_FIELDS,
-        filterColumns: ['Waste Source Location'],
+        filterColumns: ['Waste Source Location', 'Disposal Method (Composting/Landfill/Mulching/Open Burning)'],
     },
     {
         key: 'embodied-emissions',
@@ -348,14 +419,17 @@ export const SCOPE3_TABS: SubTabConfig[] = [
     },
     {
         key: 'commuting',
-        label: 'Commuting',
+        label: 'Commuters',
         sheetName: 'Scope 3_Commuting',
         icon: CarFront,
         color: 'text-violet-600',
         bgColor: 'bg-violet-100',
         columns: COMMUTING_COLUMNS,
         computeFields: COMMUTING_COMPUTE_FIELDS,
-        filterColumns: ['Commuter Category (Student/Teaching Staff/Non-Teaching Staff)'],
+        filterColumns: [
+            'Commuter Category (Student/Teaching Staff/Non-Teaching Staff)',
+            'Transport Mode (Bus/Car/Bike/Train/Walk)',
+        ],
     },
 ];
 

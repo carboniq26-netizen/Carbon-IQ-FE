@@ -6,6 +6,7 @@ import Scope2SubTab from './pages/Scope2SubTab';
 import Scope3SubTab from './pages/Scope3SubTab';
 import Biogenics from './pages/Biogenics';
 import SolarPower from './pages/SolarPower';
+import WindPower from './pages/WindPower';
 import EmissionFactors from './pages/EmissionFactors';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/scope-3/:subTab" element={<Scope3SubTab />} />
           <Route path="/biogenics" element={<Biogenics />} />
           <Route path="/solar-power" element={<SolarPower />} />
+          <Route path="/wind-power" element={<WindPower />} />
           <Route path="/emission-factors" element={<EmissionFactors />} />
         </Route>
       </Routes>

@@ -12,6 +12,7 @@ import {
     ChevronDown,
     BookOpen,
     Sun,
+    Wind,
 } from 'lucide-react';
 import { SCOPE1_TABS } from '@/const/scope1Columns';
 import { SCOPE2_TABS } from '@/const/scope2Columns';
@@ -66,6 +67,7 @@ const navItems: NavItem[] = [
     },
     { to: '/biogenics', label: 'Biogenics', icon: Leaf },
     { to: '/solar-power', label: 'Solar Power', icon: Sun },
+    { to: '/wind-power', label: 'Wind Energy', icon: Wind },
     { to: '/emission-factors', label: 'Emission Factors', icon: BookOpen },
 ];
 

@@ -4,11 +4,9 @@ import { type SubTabConfig } from '@/types/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { type MultiSelectOption } from '@/components/ui/multi-select';
 import { SubTabSummaryCards } from './SubTabSummaryCards';
-import { DynamicTable } from './DynamicTable';
-import { RawSheetTable } from './RawSheetTable';
 import { EmissionBarChart } from '@/components/charts/EmissionBarChart';
 import { EmissionDonutChart } from '@/components/charts/EmissionDonutChart';
-import { Calendar, CalendarDays, Database, BarChart3 } from 'lucide-react';
+import { Calendar, CalendarDays } from 'lucide-react';
 
 interface SubTabDashboardProps {
     tab: SubTabConfig;
@@ -23,6 +21,7 @@ const CHART_COLORS = [
 type ChartGroupBy = 'year' | 'month';
 
 export function SubTabDashboard({ tab }: SubTabDashboardProps) {
+
     /* ── Does this tab have a Month column? ──────── */
     const hasMonthColumn = tab.columns.some((c) => c.key === 'Month');
 
@@ -48,7 +47,6 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
 
     const {
         loading,
-        error,
         availableYears,
         getAvailableMonths,
         getAvailableValues,
@@ -56,12 +54,14 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         getFilteredTotals,
     } = useSheetData(tab.sheetName, tab.columns, tab.computeFields, tab.sheetId);
 
-    const [viewMode, setViewMode] = useState<'data' | 'visual'>(tab.key === 'dg-data' ? 'data' : 'visual');
-
-    // Reset view mode when tab changes back
+    // Reset visual states when tab changes
     useEffect(() => {
-        setViewMode(tab.key === 'dg-data' ? 'data' : 'visual');
-    }, [tab.key]);
+        // Reset chart grouping if new tab doesn't support monthly grouping
+        if (!hasMonthColumn) {
+            setChartGroupBy('year');
+            setSelectedMonths([]);
+        }
+    }, [tab.key, hasMonthColumn]);
 
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
@@ -120,7 +120,8 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         if (chartGroupBy === 'year') {
             // Group by Reporting Year
             filteredRows.forEach((r) => {
-                const year = r['Reporting Year']?.trim() || 'Unknown';
+                const year = r['Reporting Year']?.trim();
+                if (!year) return; // Skip if year is missing
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(year, (map.get(year) ?? 0) + (isNaN(val) ? 0 : val));
             });
@@ -135,7 +136,8 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         } else {
             // Group by Month
             filteredRows.forEach((r) => {
-                const month = r['Month']?.trim() || 'Unknown';
+                const month = r['Month']?.trim();
+                if (!month) return; // Skip if month is missing
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(month, (map.get(month) ?? 0) + (isNaN(val) ? 0 : val));
             });
@@ -171,7 +173,12 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     /* ── Helper: get short label for a filter column ── */
     const getFilterLabel = (colKey: string) => {
         const col = tab.columns.find((c) => c.key === colKey);
-        return col ? `All ${col.label}s` : `All`;
+        if (!col) return 'All';
+        const label = col.label;
+        if (label.toLowerCase().endsWith('category')) {
+            return `All ${label.slice(0, -1)}ies`;
+        }
+        return `All ${label}s`;
     };
 
     return (
@@ -184,35 +191,13 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                             <tab.icon className={`w-6 h-6 ${tab.color}`} />
                             <h2 className="text-xl font-bold text-text-main">{tab.label}</h2>
                         </div>
-                        
-                        {tab.key === 'dg-data' && (
-                            <div className="flex items-center bg-bg-section p-1 rounded-lg border border-border">
-                                <button
-                                    onClick={() => setViewMode('data')}
-                                    className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-all ${
-                                        viewMode === 'data' ? 'bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text-main'
-                                    }`}
-                                >
-                                    <Database className="w-4 h-4" /> Data
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('visual')}
-                                    className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-all ${
-                                        viewMode === 'visual' ? 'bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text-main'
-                                    }`}
-                                >
-                                    <BarChart3 className="w-4 h-4" /> Visual
-                                </button>
-                            </div>
-                        )}
                     </div>
                     <p className="text-text-secondary text-sm leading-relaxed">
                         {tab.label} emissions — {filterLabel}
                     </p>
                 </div>
 
-                {viewMode === 'visual' && (
-                    <div className="flex items-center gap-2 xl:justify-end shrink-0 max-w-full z-10">
+                <div className="flex items-center gap-2 xl:justify-end shrink-0 max-w-full z-10">
                         <MultiSelect
                             options={yearOptions}
                             selected={selectedYears}
@@ -246,91 +231,72 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                             );
                         })}
                     </div>
-                )}
             </div>
 
             {/* View Mode Content */}
-            {viewMode === 'data' ? (
-                <div className="mt-2">
-                    {tab.rawDataTableOverride ? (
-                        <RawSheetTable 
-                            sheetName={tab.rawDataTableOverride.sheetName} 
-                            sheetId={tab.rawDataTableOverride.sheetId} 
-                        />
-                    ) : (
-                        <DynamicTable
-                            columns={tab.columns}
-                            rows={filteredRows}
-                            loading={loading}
-                            error={error}
-                        />
-                    )}
-                </div>
-            ) : (
-                <>
-                    {/* Summary Cards */}
-                    <SubTabSummaryCards
-                        columns={tab.columns}
-                        totals={filteredTotals}
-                        loading={loading}
-                        accentColor={tab.color}
-                        accentBg={tab.bgColor}
-                    />
+            <div className="space-y-6">
+                {/* Summary Cards */}
+                <SubTabSummaryCards
+                    columns={tab.columns}
+                    totals={filteredTotals}
+                    loading={loading}
+                    accentColor={tab.color}
+                    accentBg={tab.bgColor}
+                />
 
-                    {/* Charts */}
-                    {chartGrouped.length > 0 && (
-                        <div className="space-y-3">
-                            {/* Year / Month toggle (only when Month column exists) */}
-                            {hasMonthColumn && (
-                                <div className="flex items-center gap-1 bg-bg-section rounded-lg p-1 w-fit">
-                                    <button
-                                        onClick={() => setChartGroupBy('year')}
-                                        className={`
-                                            flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
-                                            transition-all duration-200 cursor-pointer
-                                            ${chartGroupBy === 'year'
-                                                ? 'bg-card text-primary shadow-sm'
-                                                : 'text-text-muted hover:text-text-main'
-                                            }
-                                        `}
-                                    >
-                                        <Calendar className="w-3.5 h-3.5" />
-                                        By Year
-                                    </button>
-                                    <button
-                                        onClick={() => setChartGroupBy('month')}
-                                        className={`
-                                            flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
-                                            transition-all duration-200 cursor-pointer
-                                            ${chartGroupBy === 'month'
-                                                ? 'bg-card text-primary shadow-sm'
-                                                : 'text-text-muted hover:text-text-main'
-                                            }
-                                        `}
-                                    >
-                                        <CalendarDays className="w-3.5 h-3.5" />
-                                        By Month
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                <EmissionBarChart
-                                    data={chartGrouped}
-                                    loading={loading}
-                                    isEmpty={totalEmission === 0}
-                                />
-                                <EmissionDonutChart
-                                    data={chartGrouped}
-                                    total={totalEmission}
-                                    loading={loading}
-                                    isEmpty={totalEmission === 0}
-                                />
+                {/* Charts */}
+                {chartGrouped.length > 0 && (
+                    <div className="space-y-3">
+                        {/* Year / Month toggle (only when Month column exists) */}
+                        {hasMonthColumn && (
+                            <div className="flex items-center gap-1 bg-bg-section rounded-lg p-1 w-fit">
+                                <button
+                                    onClick={() => setChartGroupBy('year')}
+                                    className={`
+                                        flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                        transition-all duration-200 cursor-pointer
+                                        ${chartGroupBy === 'year'
+                                            ? 'bg-card text-primary shadow-sm'
+                                            : 'text-text-muted hover:text-text-main'
+                                        }
+                                    `}
+                                >
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    By Year
+                                </button>
+                                <button
+                                    onClick={() => setChartGroupBy('month')}
+                                    className={`
+                                        flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                                        transition-all duration-200 cursor-pointer
+                                        ${chartGroupBy === 'month'
+                                            ? 'bg-card text-primary shadow-sm'
+                                            : 'text-text-muted hover:text-text-main'
+                                        }
+                                    `}
+                                >
+                                    <CalendarDays className="w-3.5 h-3.5" />
+                                    By Month
+                                </button>
                             </div>
+                        )}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <EmissionBarChart
+                                data={chartGrouped}
+                                loading={loading}
+                                isEmpty={totalEmission === 0}
+                            />
+                            <EmissionDonutChart
+                                data={chartGrouped}
+                                total={totalEmission}
+                                loading={loading}
+                                isEmpty={totalEmission === 0}
+                            />
                         </div>
-                    )}
-                </>
-            )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

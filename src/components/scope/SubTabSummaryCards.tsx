@@ -19,7 +19,7 @@ export function SubTabSummaryCards({
     const cardColumns = columns.filter((c) => c.showInCard && c.type === 'numeric');
 
     return (
-        <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${cardColumns.length}, minmax(0, 1fr))` }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {cardColumns.map((col) => {
                 const val = totals[col.key] ?? 0;
 
@@ -29,7 +29,7 @@ export function SubTabSummaryCards({
                             <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${accentBg}`}>
                                 <TrendingDown className={`w-4 h-4 ${accentColor}`} />
                             </div>
-                            <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+                            <p className="text-sm font-semibold text-text-muted tracking-wide">
                                 {col.label}
                             </p>
                         </div>

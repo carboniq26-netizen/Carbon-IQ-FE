@@ -119,12 +119,8 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
             numericKeys.forEach((key) => {
                 totals[key] = source.reduce((sum, row) => {
                     const raw = row[key] ?? '';
-                    if (raw.includes(',')) {
-                        const parts = raw.split(',').map((s) => parseFloat(s.trim()));
-                        const rowSum = parts.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
-                        return sum + rowSum;
-                    }
-                    const val = parseFloat(raw);
+                    const cleaned = raw.replace(/,/g, '');
+                    const val = parseFloat(cleaned);
                     return sum + (isNaN(val) ? 0 : val);
                 }, 0);
             });
