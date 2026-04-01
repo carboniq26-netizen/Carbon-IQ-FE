@@ -4,6 +4,8 @@ import { getSheetCsvUrl } from '../const/constants';
 import { Scope } from '../types/types';
 import { SCOPE1_TABS } from '../const/scope1Columns';
 import { SCOPE2_TABS } from '../const/scope2Columns';
+import { SOLAR_POWER_TAB } from '../const/solarPowerColumns';
+import { WIND_POWER_TAB } from '../const/windPowerColumns';
 import { SCOPE3_TABS } from '../const/scope3Columns';
 import { BIOGENICS_TAB } from '../const/biogenicsColumns';
 
@@ -29,6 +31,8 @@ export interface UseAggregatedEmissionsReturn {
 const ALL_CONFIGS = [
     ...SCOPE1_TABS.map(tab => ({ tab, scope: Scope.SCOPE_1 })),
     ...SCOPE2_TABS.map(tab => ({ tab, scope: Scope.SCOPE_2 })),
+    { tab: SOLAR_POWER_TAB, scope: Scope.SCOPE_2 },
+    { tab: WIND_POWER_TAB, scope: Scope.SCOPE_2 },
     ...SCOPE3_TABS.map(tab => ({ tab, scope: Scope.SCOPE_3 })),
     { tab: BIOGENICS_TAB, scope: Scope.BIOGENICS }
 ];
@@ -95,15 +99,8 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                             const yearKey = tab.columns.find((c) => c.key === 'Reporting Year' || c.key.includes('Year'))?.key;
                             const monthKey = tab.columns.find((c) => c.key === 'Month' || c.key.includes('Month'))?.key;
                             
-                            // Explicitly search for the final Emissions column (kg CO2e) by ignoring 'Factor' 
-                            const emissionKey = tab.columns.find(
-                                (c) => c.type === 'numeric' && 
-                                       (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
-                                       c.key.toLowerCase().includes('emission') && 
-                                       !c.key.toLowerCase().includes('factor')
-                            )?.key;
-
                             cleaned.forEach(row => {
+
                                 const year = yearKey ? (row[yearKey]?.trim() || '') : '';
                                 const month = monthKey ? (row[monthKey]?.trim() || '') : '';
                                 

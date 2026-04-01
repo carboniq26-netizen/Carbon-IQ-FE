@@ -19,6 +19,7 @@ export default function Dashboard() {
     const {
         loading,
         getFilteredScopeTotal,
+        getFilteredMetricTotal,
         getFilteredTotal: getFilteredTotalEmission,
         availableYears,
         getAvailableMonths,
@@ -45,6 +46,12 @@ export default function Dashboard() {
     const scope2Total = getFilteredScopeTotal(Scope.SCOPE_2, years, months);
     const scope3Total = getFilteredScopeTotal(Scope.SCOPE_3, years, months);
     const biogenicsTotal = getFilteredScopeTotal(Scope.BIOGENICS, years, months);
+
+    // New metrics for Row 2
+    const solarGenerated = getFilteredMetricTotal('solar-power', 'Solar Generation (kWh)', years, months);
+    const windGenerated = getFilteredMetricTotal('wind-power', 'Wind Energy Generation (KWh)', years, months);
+    const biogasProduced = getFilteredMetricTotal('biogas', 'CH4 Produced (kg)', years, months);
+    const biogasNetImpact = getFilteredMetricTotal('biogas', 'Net Emissions (kg CO2e)', years, months);
 
     const barData = [
         { name: 'Scope 1', value: scope1Total, fill: SCOPE_COLORS[Scope.SCOPE_1] },
@@ -99,7 +106,6 @@ export default function Dashboard() {
                         onChange={handleYearChange}
                         placeholder="All Years"
                         className='cursor-pointer'
-                    // className="w-[180px]"
                     />
                     <MultiSelect
                         options={monthOptions}
@@ -107,18 +113,20 @@ export default function Dashboard() {
                         onChange={setSelectedMonths}
                         placeholder="All Months"
                         disabled={selectedYears.length === 0}
-                        // className="w-[20px]"
                     />
                 </div>
             </div>
 
             {/* Summary Cards */}
             <SummaryCards
-                total={total}
                 scope1Total={scope1Total}
                 scope2Total={scope2Total}
                 scope3Total={scope3Total}
                 biogenicsTotal={biogenicsTotal}
+                solarGenerated={solarGenerated}
+                windGenerated={windGenerated}
+                biogasProduced={biogasProduced}
+                biogasNetImpact={biogasNetImpact}
                 loading={loading}
             />
 

@@ -1,71 +1,41 @@
-import { Flame, Zap, Globe, TrendingDown, Leaf } from 'lucide-react';
-import { Scope } from '@/types/types';
+import { Flame, Zap, Globe, Leaf, Sun, Wind, FlameKindling } from 'lucide-react';
 
 interface SummaryCardsProps {
-    total: number;
+
     scope1Total: number;
     scope2Total: number;
     scope3Total: number;
     biogenicsTotal: number;
+    solarGenerated: number;
+    windGenerated: number;
+    biogasProduced: number;
+    biogasNetImpact: number;
     loading: boolean;
 }
 
-const scopeCards = [
-    {
-        scope: Scope.SCOPE_1,
-        label: 'Scope 1',
-        subtitle: 'Direct Emissions',
-        icon: Flame,
-        color: 'text-danger',
-        bgColor: 'bg-danger/10',
-    },
-    {
-        scope: Scope.SCOPE_2,
-        label: 'Scope 2',
-        subtitle: 'Energy Indirect',
-        icon: Zap,
-        color: 'text-warning',
-        bgColor: 'bg-warning/10',
-    },
-    {
-        scope: Scope.SCOPE_3,
-        label: 'Scope 3',
-        subtitle: 'Other Indirect',
-        icon: Globe,
-        color: 'text-info',
-        bgColor: 'bg-info/10',
-    },
-];
+// No longer used: scopeCards configuration moved to inline renderCard calls
 
-export function SummaryCards({ total, scope1Total, scope2Total, scope3Total, biogenicsTotal, loading }: SummaryCardsProps) {
-    const getScopeTotal = (scope: Scope) => {
-        if (scope === Scope.SCOPE_1) return scope1Total;
-        if (scope === Scope.SCOPE_2) return scope2Total;
-        if (scope === Scope.SCOPE_3) return scope3Total;
-        return biogenicsTotal;
-    };
 
-    const biogenicsCard = {
-        scope: Scope.BIOGENICS,
-        label: 'Biogenics',
-        subtitle: 'Biological Sources',
-        icon: Leaf,
-        color: 'text-green-600',
-        bgColor: 'bg-green-100',
-    };
-
-    const renderCard = (scope: Scope, label: string, subtitle: string, Icon: React.ElementType, color: string, bgColor: string) => {
-        const scopeTotal = getScopeTotal(scope);
-        const percentage = total > 0 && scope !== Scope.BIOGENICS ? ((scopeTotal / total) * 100).toFixed(1) : '0';
-
+export function SummaryCards({
+    scope1Total,
+    scope2Total,
+    scope3Total,
+    biogenicsTotal,
+    solarGenerated,
+    windGenerated,
+    biogasProduced,
+    biogasNetImpact,
+    loading
+}: SummaryCardsProps) {
+    const renderCard = (label: string, subtitle: string, value: number, unit: string, Icon: React.ElementType, color: string, bgColor: string) => {
         return (
-            <div key={scope} className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
                 <div className="flex items-center gap-3 mb-3">
                     <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${bgColor}`}>
                         <Icon className={`w-5 h-5 ${color}`} />
                     </div>
                     <div>
-                        <p className="text-xs font-medium text-text-muted uppercase tracking-wide">{label}</p>
+                        <p className="text-sm font-semibold text-text-muted tracking-wide">{label}</p>
                         <p className="text-[10px] text-text-muted">{subtitle}</p>
                     </div>
                 </div>
@@ -73,9 +43,9 @@ export function SummaryCards({ total, scope1Total, scope2Total, scope3Total, bio
                     <div className="h-8 w-24 rounded bg-bg-section animate-pulse" />
                 ) : (
                     <div className="flex items-end gap-2">
-                        <p className="text-2xl font-bold text-text-main">{scopeTotal.toFixed(1)}</p>
+                        <p className="text-2xl font-bold text-text-main">{value.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
                         <span className="text-xs font-medium text-text-muted mb-1">
-                            {scope === Scope.BIOGENICS ? 'kg CO₂' : `kg CO₂e · ${percentage}%`}
+                            {unit}
                         </span>
                     </div>
                 )}
@@ -84,35 +54,21 @@ export function SummaryCards({ total, scope1Total, scope2Total, scope3Total, bio
     };
 
     return (
-        <div className="flex flex-col gap-5">
-            {/* Top Row: Total and Biogenics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Total Card */}
-                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-soft">
-                            <TrendingDown className="w-5 h-5 text-primary" />
-                        </div>
-                        <p className="text-xs font-medium text-text-muted uppercase tracking-wide">Total Emissions</p>
-                    </div>
-                    {loading ? (
-                        <div className="h-8 w-24 rounded bg-bg-section animate-pulse" />
-                    ) : (
-                        <p className="text-2xl font-bold text-text-main">
-                            {total.toFixed(1)} <span className="text-sm font-normal text-text-muted">kg CO₂e</span>
-                        </p>
-                    )}
-                </div>
-
-                {/* Biogenics Card */}
-                {renderCard(biogenicsCard.scope, biogenicsCard.label, biogenicsCard.subtitle, biogenicsCard.icon, biogenicsCard.color, biogenicsCard.bgColor)}
+        <div className="space-y-5">
+            {/* Row 1: Scopes 1, 2, 3 and Biogenics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {renderCard('Scope 1', 'Direct Emissions', scope1Total, 'kg CO₂e', Flame, 'text-danger', 'bg-danger/10')}
+                {renderCard('Scope 2', 'Energy Indirect', scope2Total, 'kg CO₂e', Zap, 'text-warning', 'bg-warning/10')}
+                {renderCard('Scope 3', 'Other Indirect', scope3Total, 'kg CO₂e', Globe, 'text-info', 'bg-info/10')}
+                {renderCard('Biogenics', 'Biological Sources', biogenicsTotal, 'kg CO₂', Leaf, 'text-green-600', 'bg-green-100')}
             </div>
 
-            {/* Bottom Row: Scopes 1, 2, 3 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {scopeCards.map(({ scope, label, subtitle, icon, color, bgColor }) =>
-                    renderCard(scope, label, subtitle, icon, color, bgColor)
-                )}
+            {/* Row 2: Solar, Wind, Biogas Produced, Net Climate Impact */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {renderCard('Solar Generated', 'Renewable Energy', solarGenerated, 'kWh', Sun, 'text-orange-500', 'bg-orange-100')}
+                {renderCard('Wind Generated', 'Renewable Energy', windGenerated, 'kWh', Wind, 'text-cyan-500', 'bg-cyan-100')}
+                {renderCard('Biogas Produced', 'CH₄ (Methane) Produced', biogasProduced, 'kg', FlameKindling, 'text-orange-600', 'bg-orange-100')}
+                {renderCard('Net Climate Impact', 'Scope 3 Biogas', biogasNetImpact, 'kg CO₂e', Globe, 'text-indigo-600', 'bg-indigo-100')}
             </div>
         </div>
     );
