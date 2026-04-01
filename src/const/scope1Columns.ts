@@ -224,7 +224,10 @@ export const SCOPE1_TABS: SubTabConfig[] = [
         bgColor: 'bg-blue-100',
         columns: VEHICLE_COLUMNS,
         computeFields: VEHICLE_COMPUTE_FIELDS,
-        filterColumns: ['Vehicle Type (Bus/Car/Van/Bike)'],
+        filterColumns: [
+            'Vehicle Type (Bus/Car/Van/Bike)',
+            'Fuel Type (Diesel/Petrol/CNG)',
+        ],
     },
     {
         key: 'fugitive-emissions',

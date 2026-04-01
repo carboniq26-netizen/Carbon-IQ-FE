@@ -12,7 +12,8 @@ const GARDEN_WASTE_COLUMNS: ColumnDef[] = [
     { key: 'Month', label: 'Month', type: 'text' },
     { key: 'Waste Source Location', label: 'Waste Source Location', type: 'text' },
     { key: 'Disposal Method (Composting/Landfill/Mulching/Open Burning)', label: 'Disposal Method', type: 'text' },
-    { key: 'Waste Quantity in tonnes', label: 'Waste Quantity', type: 'numeric', showInCard: true, unit: 'tonnes' },
+    { key: 'Waste Quantity in tonnes', label: 'Waste Quantity (t)', type: 'numeric', unit: 'tonnes' },
+    { key: 'Waste Quantity (kg)', label: 'Waste Quantity', type: 'numeric', showInCard: true, unit: 'kg' },
     { key: 'Emission Factor (kg CO₂e/kg waste)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/kg' },
     { key: 'Calculated Emissions (kg CO2e)', label: 'Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'Calculated Emissions (tCO2e)', label: 'Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
@@ -22,6 +23,13 @@ const GARDEN_WASTE_COLUMNS: ColumnDef[] = [
 /* Waste Quantity is in tonnes, EF is per kg,
    so convert: tonnes × 1000 = kg, then kg × EF = kg CO₂e */
 const GARDEN_WASTE_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'Waste Quantity (kg)',
+        formula: (row) => {
+            const wasteTonnes = parseFloat(row['Waste Quantity in tonnes'] ?? '0');
+            return isNaN(wasteTonnes) ? 0 : wasteTonnes * 1000;
+        },
+    },
     {
         targetKey: 'Calculated Emissions (kg CO2e)',
         formula: (row) => {
@@ -232,15 +240,16 @@ const BIOGAS_COLUMNS: ColumnDef[] = [
     { key: 'Reporting Year', label: 'Year', type: 'text' },
     { key: 'Month', label: 'Month', type: 'text' },
     { key: 'Biogas Plant ID', label: 'Biogas Plant ID', type: 'text' },
-    { key: 'Food Waste Processed (Tonnes)', label: 'Food Waste Processed', type: 'numeric', showInCard: true, unit: 't' },
+    { key: 'Food Waste Processed (Tonnes)', label: 'Food Waste Processed (t)', type: 'numeric', unit: 't' },
+    { key: 'Food Waste Processed (kg)', label: 'Food Waste Processed', type: 'numeric', showInCard: true, unit: 'kg' },
     { key: 'CH4 Produced (kg)', label: 'Biogas (Methane) Produced', type: 'numeric', showInCard: true, unit: 'kg' },
     { key: 'CH4 Utilized (kg)', label: 'Biogas Utilized for Cooking', type: 'numeric', showInCard: true, unit: 'kg' },
     { key: 'Energy from Biogas (MJ)', label: 'Energy from Biogas', type: 'numeric', showInCard: true, unit: 'MJ' },
     { key: 'LPG Replaced (kg)', label: 'LPG Equivalent Replaced', type: 'numeric', showInCard: true, unit: 'kg' },
     { key: 'Avoided CO2 (kg CO2e)', label: 'Avoided Emissions (LPG Replacement)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'CH4 Emissions (kg CO2e)', label: 'Methane Leakage/CH4 Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Net Emissions (kg CO2e)', label: 'Net Climate Impact', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Net Emissions (tCO2e)', label: 'Net Emissions (t)', type: 'numeric', unit: 'tCO₂e' },
+    { key: 'Net Emissions (kg CO2e)', label: 'Net Emissions', type: 'numeric', unit: 'kg CO₂e' },
+    { key: 'Net Emissions (tCO2e)', label: 'Net Emissions', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
 ];
 
 /* ── Updated Biogas Formulae (all derived from W only) ─────
@@ -265,6 +274,14 @@ const BIOGAS_COLUMNS: ColumnDef[] = [
    ───────────────────────────────────────────────────────── */
 
 const BIOGAS_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'Food Waste Processed (kg)',
+        formula: (row) => {
+             const wStr = row['Food Waste Processed (Tonnes)'] ?? '0';
+             const W = parseFloat(wStr.replace(/,/g, ''));
+             return isNaN(W) ? 0 : W * 1000;
+        }
+    },
     {
         // Part 1: CH₄ Produced = W × VS × Bo × F × 1.33
         targetKey: 'CH4 Produced (kg)',
@@ -408,9 +425,10 @@ export const SCOPE3_TABS: SubTabConfig[] = [
     },
     {
         key: 'stp',
-        label: 'STP',
+        label: 'Sewage Treatment Plant (STP)',
         sheetName: 'Scope 3_STP',
         icon: Droplets,
+
         color: 'text-cyan-600',
         bgColor: 'bg-cyan-100',
         columns: STP_COLUMNS,

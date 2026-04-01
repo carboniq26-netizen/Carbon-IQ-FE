@@ -10,8 +10,9 @@ import { BIOGENICS_TAB } from '../const/biogenicsColumns';
 export interface AggregatedRecord {
     year: string;
     month: string;
-    emissionKg: number;
     scope: Scope;
+    tabKey: string;
+    values: Record<string, number>;
 }
 
 export interface UseAggregatedEmissionsReturn {
@@ -22,6 +23,7 @@ export interface UseAggregatedEmissionsReturn {
     getAvailableMonths: (years?: string[]) => string[];
     getFilteredTotal: (years?: string[], months?: string[]) => number;
     getFilteredScopeTotal: (scope: Scope, years?: string[], months?: string[]) => number;
+    getFilteredMetricTotal: (tabKey: string, columnKey: string, years?: string[], months?: string[]) => number;
 }
 
 const ALL_CONFIGS = [
@@ -104,15 +106,23 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                             cleaned.forEach(row => {
                                 const year = yearKey ? (row[yearKey]?.trim() || '') : '';
                                 const month = monthKey ? (row[monthKey]?.trim() || '') : '';
-                                const emissionStr = emissionKey ? row[emissionKey] : '0';
-                                const emissionKg = parseFloat(emissionStr ?? '0');
                                 
-                                if (!isNaN(emissionKg) && emissionKg > 0 && year) {
+                                if (year) {
+                                    const values: Record<string, number> = {};
+                                    tab.columns.forEach(col => {
+                                        if (col.type === 'numeric') {
+                                            const valStr = row[col.key] ?? '0';
+                                            const val = parseFloat(valStr.replace(/,/g, ''));
+                                            values[col.key] = isNaN(val) ? 0 : val;
+                                        }
+                                    });
+
                                     allRecords.push({
                                         year,
                                         month,
-                                        emissionKg,
-                                        scope
+                                        scope,
+                                        tabKey: tab.key,
+                                        values
                                     });
                                 }
                             });
@@ -171,16 +181,42 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
     }, [records]);
 
     const getFilteredTotal = useCallback((years?: string[], months?: string[]) => {
-        return getFilteredRecords(years, months).reduce((acc, r) => acc + r.emissionKg, 0);
+        return getFilteredRecords(years, months).reduce((acc, r) => {
+            // Find the emissions key for this record's tab
+            const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
+            const emissionKey = tabConfig?.columns.find(
+                (c) => c.type === 'numeric' && 
+                       (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                       c.key.toLowerCase().includes('emission') && 
+                       !c.key.toLowerCase().includes('factor')
+            )?.key;
+
+            return acc + (emissionKey ? (r.values[emissionKey] ?? 0) : 0);
+        }, 0);
     }, [getFilteredRecords]);
 
     const getFilteredScopeTotal = useCallback((scope: Scope, years?: string[], months?: string[]) => {
         return getFilteredRecords(years, months)
                .filter(r => r.scope === scope)
-               .reduce((acc, r) => acc + r.emissionKg, 0);
+               .reduce((acc, r) => {
+                    const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
+                    const emissionKey = tabConfig?.columns.find(
+                        (c) => c.type === 'numeric' && 
+                               (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                               c.key.toLowerCase().includes('emission') && 
+                               !c.key.toLowerCase().includes('factor')
+                    )?.key;
+                    return acc + (emissionKey ? (r.values[emissionKey] ?? 0) : 0);
+               }, 0);
+    }, [getFilteredRecords]);
+
+    const getFilteredMetricTotal = useCallback((tabKey: string, columnKey: string, years?: string[], months?: string[]) => {
+        return getFilteredRecords(years, months)
+               .filter(r => r.tabKey === tabKey)
+               .reduce((acc, r) => acc + (r.values[columnKey] ?? 0), 0);
     }, [getFilteredRecords]);
 
     return {
-        records, loading, error, availableYears, getAvailableMonths, getFilteredTotal, getFilteredScopeTotal
+        records, loading, error, availableYears, getAvailableMonths, getFilteredTotal, getFilteredScopeTotal, getFilteredMetricTotal
     };
 }
