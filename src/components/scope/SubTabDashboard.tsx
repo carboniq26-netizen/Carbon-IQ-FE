@@ -6,7 +6,7 @@ import { type MultiSelectOption } from '@/components/ui/multi-select';
 import { SubTabSummaryCards } from './SubTabSummaryCards';
 import { EmissionBarChart } from '@/components/charts/EmissionBarChart';
 import { EmissionDonutChart } from '@/components/charts/EmissionDonutChart';
-import { Calendar, CalendarDays } from 'lucide-react';
+import { Calendar, CalendarDays, Info } from 'lucide-react';
 
 interface SubTabDashboardProps {
     tab: SubTabConfig;
@@ -48,24 +48,18 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     const {
         loading,
         availableYears,
-        getAvailableMonths,
         getAvailableValues,
-        getFilteredRows,
-        getFilteredTotals,
+        getFilteredRowsByRange,
+        getFilteredTotalsByRange,
     } = useSheetData(tab.sheetName, tab.columns, tab.computeFields, tab.sheetId);
 
-    // Reset visual states when tab changes
-    useEffect(() => {
-        // Reset chart grouping if new tab doesn't support monthly grouping
-        if (!hasMonthColumn) {
-            setChartGroupBy('year');
-            setSelectedMonths([]);
-        }
-    }, [tab.key, hasMonthColumn]);
-
-    const [selectedYears, setSelectedYears] = useState<string[]>([]);
-    const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+    /* ── Range filter state ───────────────────────── */
+    const [fromYear, setFromYear] = useState('');
+    const [toYear, setToYear] = useState('');
+    const [fromMonth, setFromMonth] = useState('');
+    const [toMonth, setToMonth] = useState('');
     const [chartGroupBy, setChartGroupBy] = useState<ChartGroupBy>('year');
+
 
     /* ── Extra filters state (keyed by column key) ── */
     const extraFilterKeys = tab.filterColumns ?? [];
@@ -75,37 +69,50 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         setExtraFilters((prev) => ({ ...prev, [key]: values }));
     };
 
-    const years = selectedYears.length > 0 ? selectedYears : undefined;
-    const months = selectedMonths.length > 0 ? selectedMonths : undefined;
-    const activeExtra = extraFilterKeys.length > 0 ? extraFilters : undefined;
-
-    const filteredRows = getFilteredRows(years, months, activeExtra);
-    const filteredTotals = getFilteredTotals(years, months, activeExtra);
-
-    /* ── Dropdown options ──────────────────────────── */
-    const yearOptions: MultiSelectOption[] = useMemo(
-        () => availableYears.map((y) => ({ value: y, label: y })),
-        [availableYears],
-    );
-
-    const monthOptions: MultiSelectOption[] = useMemo(
-        () =>
-            getAvailableMonths(years).map((m) => ({
-                value: m,
-                label: getMonthLabel(m),
-            })),
-        [getAvailableMonths, years],
-    );
-
-    const handleYearChange = (values: string[]) => {
-        setSelectedYears(values);
-        if (values.length > 0) {
-            const valid = getAvailableMonths(values);
-            setSelectedMonths((prev) => prev.filter((m) => valid.includes(m)));
-        } else {
-            setSelectedMonths([]);
+    // Reset when tab changes
+    useEffect(() => {
+        setFromYear('');
+        setToYear('');
+        setFromMonth('');
+        setToMonth('');
+        setExtraFilters({});
+        if (!hasMonthColumn) {
+            setChartGroupBy('year');
         }
+    }, [tab.key, hasMonthColumn]);
+
+    /* ── Filter Handlers ── */
+    const handleFromYearChange = (v: string) => {
+        setFromYear(v);
+        // Basic clamp
+        if (toYear && v && v.localeCompare(toYear) > 0) setToYear(v);
     };
+
+    const handleToYearChange = (v: string) => {
+        setToYear(v);
+        // Basic clamp
+        if (fromYear && v && v.localeCompare(fromYear) < 0) setFromYear(v);
+    };
+
+    const handleFromMonthChange = (v: string) => {
+        setFromMonth(v);
+    };
+
+    const handleToMonthChange = (v: string) => {
+        setToMonth(v);
+    };
+
+    const activeExtra = extraFilterKeys.length > 0 ? extraFilters : undefined;
+    const filteredRows = getFilteredRowsByRange(fromYear || undefined, toYear || undefined, fromMonth || undefined, toMonth || undefined, activeExtra);
+    const filteredTotals = getFilteredTotalsByRange(fromYear || undefined, toYear || undefined, fromMonth || undefined, toMonth || undefined, activeExtra);
+
+    /* ── Month options for range selects ────────── */
+    const monthOptions = useMemo(() => {
+        return [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ].map(m => ({ value: m, label: m }));
+    }, []);
 
     /* ── Chart data — group by Year or Month ──────── */
 
@@ -118,14 +125,12 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         const map = new Map<string, number>();
 
         if (chartGroupBy === 'year') {
-            // Group by Reporting Year
             filteredRows.forEach((r) => {
                 const year = r['Reporting Year']?.trim();
-                if (!year) return; // Skip if year is missing
+                if (!year) return;
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(year, (map.get(year) ?? 0) + (isNaN(val) ? 0 : val));
             });
-            // Sort by year
             const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
             return sorted.map(([name, value], i) => ({
                 name,
@@ -134,14 +139,12 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                 color: CHART_COLORS[i % CHART_COLORS.length],
             }));
         } else {
-            // Group by Month
             filteredRows.forEach((r) => {
                 const month = r['Month']?.trim();
-                if (!month) return; // Skip if month is missing
+                if (!month) return;
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(month, (map.get(month) ?? 0) + (isNaN(val) ? 0 : val));
             });
-            // Sort by month number
             const sorted = Array.from(map.entries()).sort((a, b) => {
                 const na = getMonthNumber(a[0]);
                 const nb = getMonthNumber(b[0]);
@@ -161,14 +164,22 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     /* ── Filter label ──────────────────────────────── */
     const filterLabel = useMemo(() => {
         const parts: string[] = [];
-        if (selectedYears.length > 0) parts.push(selectedYears.join(', '));
-        if (selectedMonths.length > 0) parts.push(selectedMonths.map(getMonthLabel).join(', '));
+        if (hasMonthColumn) {
+            const startStr = fromYear && fromMonth ? `${getMonthLabel(fromMonth)} ${fromYear}` : '…';
+            const endStr = toYear && toMonth ? `${getMonthLabel(toMonth)} ${toYear}` : '…';
+            if (startStr !== '…' || endStr !== '…') {
+                parts.push(`${startStr} – ${endStr}`);
+            }
+        } else if (fromYear || toYear) {
+            parts.push(`${fromYear || '…'} – ${toYear || '…'}`);
+        }
         extraFilterKeys.forEach((key) => {
             const vals = extraFilters[key];
             if (vals && vals.length > 0) parts.push(vals.join(', '));
         });
         return parts.length > 0 ? parts.join(' · ') : 'All Time';
-    }, [selectedYears, selectedMonths, extraFilters, extraFilterKeys]);
+    }, [fromYear, toYear, fromMonth, toMonth, extraFilters, extraFilterKeys, hasMonthColumn]);
+
 
     /* ── Helper: get short label for a filter column ── */
     const getFilterLabel = (colKey: string) => {
@@ -184,53 +195,107 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header & Filters */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center flex-wrap gap-x-4 gap-y-2">
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex flex-col gap-1 w-full">
                         <div className="flex items-center gap-2">
                             <tab.icon className={`w-6 h-6 ${tab.color}`} />
                             <h2 className="text-xl font-bold text-text-main">{tab.label}</h2>
                         </div>
+                        <p className="text-text-secondary text-sm leading-relaxed mb-1">
+                            {tab.label} emissions — {filterLabel}
+                        </p>
+                        
+                        {tab.description && (
+                            <div className="flex items-start gap-2 py-2.5 px-4 bg-bg-section/50 rounded-lg border border-border/50 w-full">
+                                <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                                <p className="text-xs text-text-muted leading-relaxed italic">
+                                    {tab.description}
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    <p className="text-text-secondary text-sm leading-relaxed">
-                        {tab.label} emissions — {filterLabel}
-                    </p>
                 </div>
 
-                <div className="flex items-center gap-2 xl:justify-end shrink-0 max-w-full z-10">
+                {/* Range filters row */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    {/* From Group */}
+                    <div className="flex items-center gap-2 relative z-30">
+                        <span className="text-xs font-semibold text-text-muted whitespace-nowrap uppercase tracking-wider">From</span>
                         <MultiSelect
-                            options={yearOptions}
-                            selected={selectedYears}
-                            onChange={handleYearChange}
-                            placeholder="All Years"
-                            className="cursor-pointer"
+                            options={availableYears.map(y => ({ value: y, label: y }))}
+                            selected={fromYear ? [fromYear] : []}
+                            onChange={(vals) => handleFromYearChange(vals[vals.length - 1] || '')}
+                            placeholder="Year"
+                            className="min-w-[120px]"
                         />
                         {hasMonthColumn && (
                             <MultiSelect
                                 options={monthOptions}
-                                selected={selectedMonths}
-                                onChange={setSelectedMonths}
-                                placeholder="All Months"
-                                disabled={selectedYears.length === 0}
+                                selected={fromMonth ? [fromMonth] : []}
+                                onChange={(vals) => handleFromMonthChange(vals[vals.length - 1] || '')}
+                                placeholder="Month"
+                                className="min-w-[130px]"
                             />
                         )}
-                        {/* Extra filter dropdowns */}
-                        {extraFilterKeys.map((colKey) => {
-                            const options: MultiSelectOption[] = getAvailableValues(colKey).map((v) => ({
-                                value: v,
-                                label: v,
-                            }));
-                            return (
-                                <MultiSelect
-                                    key={colKey}
-                                    options={options}
-                                    selected={extraFilters[colKey] ?? []}
-                                    onChange={(vals) => updateExtraFilter(colKey, vals)}
-                                    placeholder={getFilterLabel(colKey)}
-                                />
-                            );
-                        })}
                     </div>
+
+                    <span className="text-text-muted font-light hidden sm:inline">|</span>
+
+                    {/* To Group */}
+                    <div className="flex items-center gap-2 relative z-20">
+                        <span className="text-xs font-semibold text-text-muted whitespace-nowrap uppercase tracking-wider">To</span>
+                        <MultiSelect
+                            options={availableYears.map(y => ({ value: y, label: y }))}
+                            selected={toYear ? [toYear] : []}
+                            onChange={(vals) => handleToYearChange(vals[vals.length - 1] || '')}
+                            placeholder="Year"
+                            className="min-w-[120px]"
+                        />
+                        {hasMonthColumn && (
+                            <MultiSelect
+                                options={monthOptions}
+                                selected={toMonth ? [toMonth] : []}
+                                onChange={(vals) => handleToMonthChange(vals[vals.length - 1] || '')}
+                                placeholder="Month"
+                                className="min-w-[130px]"
+                            />
+                        )}
+                    </div>
+
+                    {/* Extra category filter dropdowns */}
+                    {extraFilterKeys.map((colKey) => {
+                        const options: MultiSelectOption[] = getAvailableValues(colKey).map((v) => ({
+                            value: v,
+                            label: v,
+                        }));
+                        return (
+                            <MultiSelect
+                                key={colKey}
+                                options={options}
+                                selected={extraFilters[colKey] ?? []}
+                                onChange={(vals) => updateExtraFilter(colKey, vals)}
+                                placeholder={getFilterLabel(colKey)}
+                            />
+                        );
+                    })}
+
+                    {/* Clear button — appears when any filter is active */}
+                    {(fromYear || toYear || fromMonth || toMonth || Object.values(extraFilters).some((v) => v.length > 0)) && (
+                        <button
+                            onClick={() => {
+                                setFromYear('');
+                                setToYear('');
+                                setFromMonth('');
+                                setToMonth('');
+                                setExtraFilters({});
+                            }}
+                            className="text-xs text-text-muted hover:text-danger transition-colors cursor-pointer underline underline-offset-2"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* View Mode Content */}
@@ -300,4 +365,5 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         </div>
     );
 }
+
 

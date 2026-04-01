@@ -51,6 +51,10 @@ export interface UseSheetDataReturn {
     getFilteredRows: (years?: string[], months?: string[], extraFilters?: Record<string, string[]>) => SheetRow[];
     /** Numeric totals for filtered rows */
     getFilteredTotals: (years?: string[], months?: string[], extraFilters?: Record<string, string[]>) => Record<string, number>;
+    /** Rows filtered by year range / month range / extra column filters */
+    getFilteredRowsByRange: (fromYear?: string, toYear?: string, fromMonth?: string, toMonth?: string, extraFilters?: Record<string, string[]>) => SheetRow[];
+    /** Numeric totals for range-filtered rows */
+    getFilteredTotalsByRange: (fromYear?: string, toYear?: string, fromMonth?: string, toMonth?: string, extraFilters?: Record<string, string[]>) => Record<string, number>;
 }
 
 /* ── Main hook ──────────────────────────────────────────── */
@@ -210,6 +214,59 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
         [computeTotals, getFilteredRows],
     );
 
+    const getFilteredRowsByRange = useCallback(
+        (fromYear?: string, toYear?: string, fromMonth?: string, toMonth?: string, extraFilters?: Record<string, string[]>): SheetRow[] => {
+            const hasYearRange = fromYear || toYear;
+            const hasMonthRange = fromMonth || toMonth;
+            const hasExtra = extraFilters && Object.values(extraFilters).some((v) => v.length > 0);
+
+            if (!hasYearRange && !hasMonthRange && !hasExtra) return rows;
+
+            /* ── Helper: Create Chronological Sort Key (YYYYMM) ───── */
+            const getSortKey = (yearStr: string, monthStr: string) => {
+                // Handle fiscal year format "2024-25" by taking the first 4 digits
+                const baseYear = parseInt(yearStr.split('-')[0], 10);
+                const mNum = parseInt(getMonthNumber(monthStr), 10);
+                // Fiscal year 2024-25: Jan-Mar are technically the next year (2025)
+                const adjustedYear = mNum <= 3 && mNum > 0 ? baseYear + 1 : baseYear;
+                return adjustedYear * 100 + mNum;
+            };
+
+            /* ── Define Timeline Bounds (Numeric YYYYMM) ───── */
+            const startBound = getSortKey(fromYear || '0', fromMonth || 'January');
+            const endBound = getSortKey(toYear || '9999', toMonth || 'December');
+
+            return rows.filter((r) => {
+                // 1. Time range filter (Chronological)
+                if (hasYearRange || hasMonthRange) {
+                    const rowYear = yearKey ? r[yearKey]?.trim() ?? '0' : '0';
+                    const rowMonth = monthKey ? r[monthKey]?.trim() ?? 'January' : 'January';
+                    const rowBound = getSortKey(rowYear, rowMonth);
+
+                    if (rowBound < startBound || rowBound > endBound) return false;
+                }
+
+                // 2. Extra column filters
+                if (hasExtra && extraFilters) {
+                    for (const [key, vals] of Object.entries(extraFilters)) {
+                        if (vals.length > 0) {
+                            const v = r[key]?.trim();
+                            if (!vals.includes(v)) return false;
+                        }
+                    }
+                }
+                return true;
+            });
+        },
+        [rows, yearKey, monthKey],
+    );
+
+    const getFilteredTotalsByRange = useCallback(
+        (fromYear?: string, toYear?: string, fromMonth?: string, toMonth?: string, extraFilters?: Record<string, string[]>): Record<string, number> =>
+            computeTotals(getFilteredRowsByRange(fromYear, toYear, fromMonth, toMonth, extraFilters)),
+        [computeTotals, getFilteredRowsByRange],
+    );
+
     return {
         rows,
         loading,
@@ -221,5 +278,7 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
         getAvailableValues,
         getFilteredRows,
         getFilteredTotals,
+        getFilteredRowsByRange,
+        getFilteredTotalsByRange,
     };
 }

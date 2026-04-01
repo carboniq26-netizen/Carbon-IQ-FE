@@ -110,7 +110,7 @@ export default function Sidebar() {
                             Carbon IQ
                         </h1>
                         <p className="text-[10px] font-medium text-text-muted text-wrap leading-tight">
-                            Campus Carbon, Simplified, replacing
+                            Campus Carbon, Simplified.
                         </p>
                     </div>
                 )}

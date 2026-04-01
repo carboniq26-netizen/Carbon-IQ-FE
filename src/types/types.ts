@@ -65,6 +65,8 @@ export interface SubTabConfig {
     computeFields?: ComputeField[];
     /** Optional extra column keys to use as filter dropdowns (beyond Year/Month) */
     filterColumns?: string[];
+    /** Optional contextual note or description for this tab */
+    description?: string;
 }
 
 /** A single row from any sheet — values keyed by column header */

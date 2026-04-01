@@ -23,11 +23,8 @@ const VEHICLE_DATA = [
 ];
 
 const ELECTRICITY_DATA = [
-    { year: '2020', ef: 0.83 },
-    { year: '2021', ef: 0.79 },
-    { year: '2022', ef: 0.70 },
-    { year: '2023', ef: 0.81 },
-    { year: '2024', ef: 0.710 },
+    { year: '2024', ef: 0.727 },
+    { year: '2025', ef: 0.710 },
 ];
 
 const GARDEN_WASTE_DATA = [
