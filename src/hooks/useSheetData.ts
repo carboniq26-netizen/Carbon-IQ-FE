@@ -64,9 +64,20 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Identify the year and month column keys from the column defs
-    const yearKey = useMemo(() => columns.find((c) => c.key === 'Reporting Year')?.key ?? '', [columns]);
-    const monthKey = useMemo(() => columns.find((c) => c.key === 'Month')?.key ?? '', [columns]);
+    // Identify the year and month column keys from the column defs (Robust search)
+    const yearKey = useMemo(() => {
+        if (rows.length === 0) return '';
+        const allKeys = Object.keys(rows[0]);
+        return allKeys.find(k => k.toLowerCase() === 'reporting year') || 
+               columns.find((c) => c.key === 'Reporting Year')?.key || '';
+    }, [columns, rows]);
+
+    const monthKey = useMemo(() => {
+        if (rows.length === 0) return '';
+        const allKeys = Object.keys(rows[0]);
+        return allKeys.find(k => k.toLowerCase() === 'month') || 
+               columns.find((c) => c.key === 'Month')?.key || '';
+    }, [columns, rows]);
 
     const numericKeys = useMemo(() => columns.filter((c) => c.type === 'numeric').map((c) => c.key), [columns]);
 
@@ -224,17 +235,16 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
 
             /* ── Helper: Create Chronological Sort Key (YYYYMM) ───── */
             const getSortKey = (yearStr: string, monthStr: string) => {
-                // Handle fiscal year format "2024-25" by taking the first 4 digits
-                const baseYear = parseInt(yearStr.split('-')[0], 10);
-                const mNum = parseInt(getMonthNumber(monthStr), 10);
-                // Fiscal year 2024-25: Jan-Mar are technically the next year (2025)
-                const adjustedYear = mNum <= 3 && mNum > 0 ? baseYear + 1 : baseYear;
-                return adjustedYear * 100 + mNum;
+                // If the year is formatted like "2023-24", we take the first part (2023)
+                const baseYear = parseInt(yearStr.split('-')[0], 10) || 0;
+                const mNum = parseInt(getMonthNumber(monthStr), 10) || 1;
+                // Based on user feedback: January 2023-24 IS January 2023 (No fiscal shift)
+                return baseYear * 100 + mNum;
             };
 
             /* ── Define Timeline Bounds (Numeric YYYYMM) ───── */
-            const startBound = getSortKey(fromYear || '0', fromMonth || 'January');
-            const endBound = getSortKey(toYear || '9999', toMonth || 'December');
+            const startBound = getSortKey(fromYear || '1900', fromMonth || 'January');
+            const endBound = getSortKey(toYear || '2099', toMonth || 'December');
 
             return rows.filter((r) => {
                 // 1. Time range filter (Chronological)
