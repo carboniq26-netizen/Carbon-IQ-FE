@@ -221,7 +221,7 @@ const BIOGAS_COLUMNS: ColumnDef[] = [
     { key: 'Avoided CO2 (kg CO2e)', label: 'Avoided Emissions (LPG Replacement)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'CH4 Emissions (kg CO2e)', label: 'Methane Leakage/CH4 Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'Net Emissions (kg CO2e)', label: 'Net Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Net Emissions (tCO2e)', label: 'Net Emissions', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+    { key: 'Net Emissions (tCO2e)', label: 'Net Emissions', type: 'numeric', showInCard: false, unit: 'tCO₂e' },
 ];
 
 const BIOGAS_COMPUTE_FIELDS: ComputeField[] = [
