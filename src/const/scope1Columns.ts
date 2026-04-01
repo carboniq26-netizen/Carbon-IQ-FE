@@ -426,6 +426,6 @@ export const SCOPE1_TABS: SubTabConfig[] = [
         columns: STP_COLUMNS,
         computeFields: STP_COMPUTE_FIELDS,
         filterColumns: ['Treatment Type'],
-        description: 'Note: Electricity consumed for STP processes, such as aerators and pumps, is recorded under Scope 2 as it is purchased electricity.',
+        description: 'Note: While the STP utilizes purchased electricity (accounted under Scope 2) for various processes such as the running of pumps,aerators etc., emissions from biological treatment processes (CH₄ and N₂O) are classified as Scope 1, as they occur directly within the operational boundary.',
     },
 ];
