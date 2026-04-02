@@ -37,6 +37,8 @@ export interface ColumnDef {
     showInTable?: boolean;
     /** Optional suffix shown on cards, e.g. "kg CO₂e" */
     unit?: string;
+    /** Columns to ignore when filtering this specific column for total cards */
+    ignoreFilters?: string[];
 }
 
 /** Defines a column whose value is computed client-side from other columns */

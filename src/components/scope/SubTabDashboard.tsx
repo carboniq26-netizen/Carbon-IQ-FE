@@ -137,6 +137,38 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
         activeExtra
     );
 
+    /* ── Final totals (handle columns that ignore certain filters) ── */
+    const finalTotals = useMemo(() => {
+        const baseTotals = { ...filteredTotals };
+        
+        // Check if any visible card columns need to ignore specific filters
+        tab.columns.forEach(col => {
+            if (col.showInCard && col.ignoreFilters && col.ignoreFilters.length > 0) {
+                const cleanExtra = { ...activeExtra };
+                let modified = false;
+                col.ignoreFilters.forEach(fKey => {
+                    if (cleanExtra[fKey]) {
+                        delete cleanExtra[fKey];
+                        modified = true;
+                    }
+                });
+
+                if (modified) {
+                    const specialTotals = getFilteredTotalsByRange(
+                        isRangeReady ? fromYear : undefined,
+                        isRangeReady ? toYear : undefined,
+                        isRangeReady ? fromMonth : undefined,
+                        isRangeReady ? toMonth : undefined,
+                        Object.keys(cleanExtra).length > 0 ? cleanExtra : undefined
+                    );
+                    baseTotals[col.key] = specialTotals[col.key] || 0;
+                }
+            }
+        });
+        
+        return baseTotals;
+    }, [tab.columns, filteredTotals, activeExtra, getFilteredTotalsByRange, isRangeReady, fromYear, toYear, fromMonth, toMonth]);
+
     /* ── Month options for range selects ────────── */
     const monthOptions = useMemo(() => {
         return [
@@ -335,7 +367,7 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                 {/* Summary Cards */}
                 <SubTabSummaryCards
                     columns={tab.columns}
-                    totals={filteredTotals}
+                    totals={finalTotals}
                     loading={loading}
                     accentColor={tab.color}
                     accentBg={tab.bgColor}

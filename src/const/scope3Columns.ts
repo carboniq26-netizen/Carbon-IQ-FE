@@ -13,7 +13,15 @@ const GARDEN_WASTE_COLUMNS: ColumnDef[] = [
     { key: 'Waste Source Location', label: 'Waste Source Location', type: 'text' },
     { key: 'Disposal Method (Composting/Landfill/Mulching/Open Burning)', label: 'Disposal Method', type: 'text' },
     { key: 'Waste Quantity in Kg', label: 'Waste Quantity (Source Kg)', type: 'numeric', unit: 'kg' },
-    { key: 'Waste Quantity (kg)', label: 'Waste Quantity', type: 'numeric', showInCard: true, unit: 'kg' },
+    { key: 'Waste Quantity (kg)', label: 'Waste Quantity', type: 'numeric', showInCard: false, unit: 'kg' },
+    { 
+        key: 'Waste Composted (kg)', 
+        label: 'Waste Quantity', 
+        type: 'numeric', 
+        showInCard: true, 
+        unit: 'kg',
+        ignoreFilters: ['Disposal Method (Composting/Landfill/Mulching/Open Burning)'] 
+    },
     { key: 'Emission Factor (kg CO₂e/kg waste)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/kg' },
     { key: 'Calculated Emissions (kg CO2e)', label: 'Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'Calculated Emissions (tCO2e)', label: 'Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
@@ -27,6 +35,17 @@ const GARDEN_WASTE_COMPUTE_FIELDS: ComputeField[] = [
         formula: (row) => {
             const wasteKg = parseFloat(row['Waste Quantity in Kg'] ?? '0');
             return isNaN(wasteKg) ? 0 : wasteKg;
+        },
+    },
+    {
+        targetKey: 'Waste Composted (kg)',
+        formula: (row) => {
+            const method = row['Disposal Method (Composting/Landfill/Mulching/Open Burning)'] ?? '';
+            if (method.toLowerCase().includes('composting')) {
+                const wasteKg = parseFloat(row['Waste Quantity in Kg'] ?? '0');
+                return isNaN(wasteKg) ? 0 : wasteKg;
+            }
+            return 0;
         },
     },
     {
