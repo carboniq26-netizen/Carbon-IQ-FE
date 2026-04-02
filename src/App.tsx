@@ -5,6 +5,7 @@ import Scope1SubTab from './pages/Scope1SubTab';
 import Scope2SubTab from './pages/Scope2SubTab';
 import Scope3SubTab from './pages/Scope3SubTab';
 import Biogenics from './pages/Biogenics';
+import SludgeEnergy from './pages/SludgeEnergy';
 import SolarPower from './pages/SolarPower';
 import WindPower from './pages/WindPower';
 import EmissionFactors from './pages/EmissionFactors';
@@ -27,6 +28,7 @@ function App() {
           <Route path="/scope-3" element={<Scope3SubTab />} />
           <Route path="/scope-3/:subTab" element={<Scope3SubTab />} />
           <Route path="/biogenics" element={<Biogenics />} />
+          <Route path="/sludge-energy" element={<SludgeEnergy />} />
           <Route path="/solar-power" element={<SolarPower />} />
           <Route path="/wind-power" element={<WindPower />} />
           <Route path="/emission-factors" element={<EmissionFactors />} />
