@@ -7,6 +7,7 @@ import { SubTabSummaryCards } from './SubTabSummaryCards';
 import { EmissionBarChart } from '@/components/charts/EmissionBarChart';
 import { EmissionDonutChart } from '@/components/charts/EmissionDonutChart';
 import { Calendar, CalendarDays, Info } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SubTabDashboardProps {
     tab: SubTabConfig;
@@ -83,15 +84,23 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
 
     /* ── Filter Handlers ── */
     const handleFromYearChange = (v: string) => {
+        if (v && toYear && v > toYear) {
+            toast.warning('Invalid Range', {
+                description: '"From" year cannot be after "To" year.'
+            });
+            return;
+        }
         setFromYear(v);
-        // Basic clamp
-        if (toYear && v && v.localeCompare(toYear) > 0) setToYear(v);
     };
 
     const handleToYearChange = (v: string) => {
+        if (v && fromYear && v < fromYear) {
+            toast.warning('Invalid Range', {
+                description: '"To" year cannot be before "From" year.'
+            });
+            return;
+        }
         setToYear(v);
-        // Basic clamp
-        if (fromYear && v && v.localeCompare(fromYear) < 0) setFromYear(v);
     };
 
     const handleFromMonthChange = (v: string) => {
@@ -103,8 +112,30 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     };
 
     const activeExtra = extraFilterKeys.length > 0 ? extraFilters : undefined;
-    const filteredRows = getFilteredRowsByRange(fromYear || undefined, toYear || undefined, fromMonth || undefined, toMonth || undefined, activeExtra);
-    const filteredTotals = getFilteredTotalsByRange(fromYear || undefined, toYear || undefined, fromMonth || undefined, toMonth || undefined, activeExtra);
+
+    /* ── Only apply range filter if it's COMPLETE ────────── */
+    const isRangeReady = useMemo(() => {
+        if (hasMonthColumn) {
+            return !!(fromYear && fromMonth && toYear && toMonth);
+        }
+        return !!(fromYear && toYear);
+    }, [hasMonthColumn, fromYear, fromMonth, toYear, toMonth]);
+
+    const filteredRows = getFilteredRowsByRange(
+        isRangeReady ? fromYear : undefined,
+        isRangeReady ? toYear : undefined,
+        isRangeReady ? fromMonth : undefined,
+        isRangeReady ? toMonth : undefined,
+        activeExtra
+    );
+    
+    const filteredTotals = getFilteredTotalsByRange(
+        isRangeReady ? fromYear : undefined,
+        isRangeReady ? toYear : undefined,
+        isRangeReady ? fromMonth : undefined,
+        isRangeReady ? toMonth : undefined,
+        activeExtra
+    );
 
     /* ── Month options for range selects ────────── */
     const monthOptions = useMemo(() => {
@@ -164,21 +195,22 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     /* ── Filter label ──────────────────────────────── */
     const filterLabel = useMemo(() => {
         const parts: string[] = [];
-        if (hasMonthColumn) {
-            const startStr = fromYear && fromMonth ? `${getMonthLabel(fromMonth)} ${fromYear}` : '…';
-            const endStr = toYear && toMonth ? `${getMonthLabel(toMonth)} ${toYear}` : '…';
-            if (startStr !== '…' || endStr !== '…') {
+        if (isRangeReady) {
+            if (hasMonthColumn) {
+                const startStr = fromYear && fromMonth ? `${getMonthLabel(fromMonth)} ${fromYear}` : '…';
+                const endStr = toYear && toMonth ? `${getMonthLabel(toMonth)} ${toYear}` : '…';
                 parts.push(`${startStr} – ${endStr}`);
+            } else if (fromYear || toYear) {
+                parts.push(`${fromYear || '…'} – ${toYear || '…'}`);
             }
-        } else if (fromYear || toYear) {
-            parts.push(`${fromYear || '…'} – ${toYear || '…'}`);
         }
+
         extraFilterKeys.forEach((key) => {
             const vals = extraFilters[key];
             if (vals && vals.length > 0) parts.push(vals.join(', '));
         });
         return parts.length > 0 ? parts.join(' · ') : 'All Time';
-    }, [fromYear, toYear, fromMonth, toMonth, extraFilters, extraFilterKeys, hasMonthColumn]);
+    }, [isRangeReady, fromYear, toYear, fromMonth, toMonth, extraFilters, extraFilterKeys, hasMonthColumn]);
 
 
     /* ── Helper: get short label for a filter column ── */

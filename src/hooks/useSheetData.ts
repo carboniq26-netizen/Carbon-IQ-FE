@@ -128,15 +128,41 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
 
     /* ── Derived helpers ─────────────────────────────── */
 
+    /**
+     * Smartly parses a numeric string that might be a single number,
+     * a number with thousands separators, or a comma-separated list of values.
+     */
+    const parseMultiValueSum = (raw: string): number => {
+        if (!raw || raw.trim() === '') return 0;
+        
+        // 1. If it contains a space after a comma, it's almost certainly a list (e.g. "150, 240")
+        if (raw.includes(', ')) {
+            return raw.split(',').reduce((acc, part) => acc + (parseFloat(part.trim()) || 0), 0);
+        }
+
+        // 2. Check if it's a standard thousands-separated number (e.g. "1,234.56")
+        // This regex checks for digits grouped by 3s with commas
+        const isThousands = /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(raw.trim());
+        if (isThousands) {
+            return parseFloat(raw.replace(/,/g, '')) || 0;
+        }
+
+        // 3. Otherwise, if it has commas, treat it as a dense list (e.g. "150,240")
+        if (raw.includes(',')) {
+            return raw.split(',').reduce((acc, part) => acc + (parseFloat(part.trim()) || 0), 0);
+        }
+
+        // 4. Default: just a normal number (remove spaces/commas safely)
+        const cleaned = raw.replace(/,/g, '').trim();
+        return parseFloat(cleaned) || 0;
+    };
+
     const computeTotals = useCallback(
         (source: SheetRow[]): Record<string, number> => {
             const totals: Record<string, number> = {};
             numericKeys.forEach((key) => {
                 totals[key] = source.reduce((sum, row) => {
-                    const raw = row[key] ?? '';
-                    const cleaned = raw.replace(/,/g, '');
-                    const val = parseFloat(cleaned);
-                    return sum + (isNaN(val) ? 0 : val);
+                    return sum + parseMultiValueSum(row[key] ?? '');
                 }, 0);
             });
             return totals;

@@ -8,10 +8,12 @@ import Biogenics from './pages/Biogenics';
 import SolarPower from './pages/SolarPower';
 import WindPower from './pages/WindPower';
 import EmissionFactors from './pages/EmissionFactors';
+import { Toaster } from 'sonner';
 
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" expand={false} richColors />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
