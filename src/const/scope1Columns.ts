@@ -330,8 +330,8 @@ const STP_COLUMNS: ColumnDef[] = [
     { key: 'Treatment Type', label: 'Treatment Type', type: 'text' },
     { key: 'Wastewater Treated (m3)', label: 'Wastewater Treated', type: 'numeric', showInCard: true, unit: 'm³' },
     { key: 'EF in kg CO₂e/m³', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/m³' },
-    { key: 'Gross Emissions (kg CO2e)', label: 'Gross Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Gross Emissions (tCO2e)', label: 'Gross Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+    { key: 'Gross Emissions (kg CO2e)', label: 'Annualised Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Gross Emissions (tCO2e)', label: 'Annualised Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
 ];
 
 const STP_COMPUTE_FIELDS: ComputeField[] = [

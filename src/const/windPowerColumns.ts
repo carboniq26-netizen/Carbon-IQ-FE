@@ -17,10 +17,28 @@ const getValueByPartialKey = (row: Record<string, string>, search: string): stri
 
 const WIND_COMPUTE_FIELDS: ComputeField[] = [
     {
+        targetKey: 'Wind Energy Generation (KWh)',
+        formula: (row: Record<string, string>) => {
+            const building = (row['Building'] || '').trim();
+            // Only count generation for the designated campus-wide reporting row (Block A)
+            // Use normalization for dash/spaces to be robust
+            const normalizedBuilding = building.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            const target = 'Block A – Basic Sciences Block'.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            
+            if (normalizedBuilding === target) {
+                const windRaw = getValueByPartialKey(row, 'Wind');
+                const val = parseFloat(windRaw.replace(/,/g, ''));
+                return isNaN(val) ? 0 : val;
+            }
+            return 0;
+        }
+    },
+    {
         targetKey: 'Emissions Reduced (kg CO2e)',
         formula: (row: Record<string, string>) => {
-            const windRaw = getValueByPartialKey(row, 'Wind');
-            const wind = parseFloat(windRaw.replace(/,/g, ''));
+            // Note: In useSheetData, compute fields are processed in order.
+            // This will use the 'filtered' wind value computed above.
+            const wind = parseFloat(row['Wind Energy Generation (KWh)'] ?? '0');
             const efRaw = getValueByPartialKey(row, 'Emission Factor');
             const ef = parseFloat(efRaw.replace(/,/g, ''));
             return (isNaN(wind) ? 0 : wind) * (isNaN(ef) ? 0 : ef);

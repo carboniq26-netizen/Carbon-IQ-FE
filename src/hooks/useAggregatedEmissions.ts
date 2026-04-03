@@ -114,10 +114,20 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                                         }
                                     });
 
+                                    // EV vehicles from campus-vehicles should count as Scope 2
+                                    let recordScope = scope;
+                                    if (tab.key === 'campus-vehicles') {
+                                        const fuelTypeKey = Object.keys(row).find(k => k.toLowerCase().includes('fuel type'));
+                                        const fuelType = fuelTypeKey ? (row[fuelTypeKey] || '').trim().toLowerCase() : '';
+                                        if (fuelType === 'ev' || fuelType === 'electric') {
+                                            recordScope = Scope.SCOPE_2;
+                                        }
+                                    }
+
                                     allRecords.push({
                                         year,
                                         month,
-                                        scope,
+                                        scope: recordScope,
                                         tabKey: tab.key,
                                         values
                                     });
@@ -181,12 +191,18 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
         return getFilteredRecords(years, months).reduce((acc, r) => {
             // Find the emissions key for this record's tab
             const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
-            const emissionKey = tabConfig?.columns.find(
-                (c) => c.type === 'numeric' && 
-                       (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
-                       c.key.toLowerCase().includes('emission') && 
-                       !c.key.toLowerCase().includes('factor')
-            )?.key;
+            let emissionKey: string | undefined;
+
+            if (r.tabKey === 'embodied-emissions') {
+                emissionKey = 'Annualised Emissions (kg CO2e)';
+            } else {
+                emissionKey = tabConfig?.columns.find(
+                    (c) => c.type === 'numeric' && 
+                           (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                           c.key.toLowerCase().includes('emission') && 
+                           !c.key.toLowerCase().includes('factor')
+                )?.key;
+            }
 
             return acc + (emissionKey ? (r.values[emissionKey] ?? 0) : 0);
         }, 0);
@@ -197,12 +213,18 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                .filter(r => r.scope === scope)
                .reduce((acc, r) => {
                     const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
-                    const emissionKey = tabConfig?.columns.find(
-                        (c) => c.type === 'numeric' && 
-                               (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
-                               c.key.toLowerCase().includes('emission') && 
-                               !c.key.toLowerCase().includes('factor')
-                    )?.key;
+                    let emissionKey: string | undefined;
+
+                    if (r.tabKey === 'embodied-emissions') {
+                        emissionKey = 'Annualised Emissions (kg CO2e)';
+                    } else {
+                        emissionKey = tabConfig?.columns.find(
+                            (c) => c.type === 'numeric' && 
+                                   (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                                   c.key.toLowerCase().includes('emission') && 
+                                   !c.key.toLowerCase().includes('factor')
+                        )?.key;
+                    }
                     return acc + (emissionKey ? (r.values[emissionKey] ?? 0) : 0);
                }, 0);
     }, [getFilteredRecords]);

@@ -23,6 +23,24 @@ export function getMonthNumber(raw: string): string {
     return MONTH_MAP[raw.trim().toLowerCase()] ?? '';
 }
 
+/**
+ * Robustly finds a value in a row by matching the key partially/case-insensitively.
+ */
+export const getValueByPartialKey = (row: Record<string, string>, search: string): string => {
+    if (!row) return '0';
+    // Try exact match first
+    if (row[search]) return row[search];
+    
+    // Try case-insensitive exact match
+    const lowerSearch = search.toLowerCase();
+    const exactKey = Object.keys(row).find(k => k.toLowerCase() === lowerSearch);
+    if (exactKey) return row[exactKey] ?? '0';
+
+    // Try partial match
+    const partialKey = Object.keys(row).find(k => k.toLowerCase().includes(lowerSearch));
+    return partialKey ? (row[partialKey] ?? '0') : '0';
+};
+
 export function getMonthLabel(numOrName: string): string {
     const idx = parseInt(numOrName, 10);
     if (!isNaN(idx) && idx >= 1 && idx <= 12) return MONTH_NAMES[idx - 1];
@@ -207,8 +225,8 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
         (columnKey: string): string[] => {
             const set = new Set<string>();
             rows.forEach((r) => {
-                const v = r[columnKey]?.trim();
-                if (v) set.add(v);
+                const v = getValueByPartialKey(r, columnKey).trim();
+                if (v && v !== '0') set.add(v);
             });
             return Array.from(set).sort();
         },
@@ -224,17 +242,17 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
 
             return rows.filter((r) => {
                 if (hasYears && yearKey) {
-                    const y = r[yearKey]?.trim();
+                    const y = getValueByPartialKey(r, yearKey).trim();
                     if (!years.includes(y)) return false;
                 }
                 if (hasMonths && monthKey) {
-                    const m = r[monthKey]?.trim();
+                    const m = getValueByPartialKey(r, monthKey).trim();
                     if (!months.includes(m)) return false;
                 }
                 if (hasExtra && extraFilters) {
                     for (const [key, vals] of Object.entries(extraFilters)) {
                         if (vals.length > 0) {
-                            const v = r[key]?.trim();
+                            const v = getValueByPartialKey(r, key).trim();
                             if (!vals.includes(v)) return false;
                         }
                     }
@@ -275,8 +293,8 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
             return rows.filter((r) => {
                 // 1. Time range filter (Chronological)
                 if (hasYearRange || hasMonthRange) {
-                    const rowYear = yearKey ? r[yearKey]?.trim() ?? '0' : '0';
-                    const rowMonth = monthKey ? r[monthKey]?.trim() ?? 'January' : 'January';
+                    const rowYear = yearKey ? getValueByPartialKey(r, yearKey).trim() : '0';
+                    const rowMonth = monthKey ? getValueByPartialKey(r, monthKey).trim() : 'January';
                     const rowBound = getSortKey(rowYear, rowMonth);
 
                     if (rowBound < startBound || rowBound > endBound) return false;
@@ -286,7 +304,7 @@ export function useSheetData(sheetName: string, columns: ColumnDef[], computeFie
                 if (hasExtra && extraFilters) {
                     for (const [key, vals] of Object.entries(extraFilters)) {
                         if (vals.length > 0) {
-                            const v = r[key]?.trim();
+                            const v = getValueByPartialKey(r, key).trim();
                             if (!vals.includes(v)) return false;
                         }
                     }

@@ -16,10 +16,10 @@ const ELECTRICITY_COLUMNS: ColumnDef[] = [
     { key: 'Emission Factor (KgCO2e/KWh)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/kWh' },
     { key: 'Solar Generation (kWh)', label: 'Solar Generated', type: 'numeric', unit: 'kWh' },
     { key: 'Wind Generation (kWh)', label: 'Wind Generated', type: 'numeric', unit: 'kWh' },
-    { key: 'Renewable Energy Produced (kWh)', label: 'Renewable Energy Produced', type: 'numeric', showInCard: true, unit: 'kWh' },
+    { key: 'Renewable Energy Produced (kWh)', label: 'Renewable Energy Produced', type: 'numeric', showInCard: true, unit: 'kWh', ignoreFilters: ['Building'] },
     { key: 'Final Emissions (kg CO2e)', label: 'Final Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'Final Emissions (tCO2e)', label: 'Final Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
-    { key: 'Gross Emissions (kg CO2e)', label: 'Gross Emissions', type: 'numeric', unit: 'kg CO₂e' },
+    { key: 'Gross Emissions (kg CO2e)', label: 'Annualised Emissions', type: 'numeric', unit: 'kg CO₂e' },
 ];
 
 const getValueByPartialKey = (row: Record<string, string>, search: string): string => {
@@ -29,30 +29,57 @@ const getValueByPartialKey = (row: Record<string, string>, search: string): stri
 
 const ELECTRICITY_COMPUTE_FIELDS: ComputeField[] = [
     {
+        targetKey: 'Solar Generation (kWh)',
+        formula: (row: Record<string, string>) => {
+            const building = (row['Building'] || '').trim();
+            const normalizedBuilding = building.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            const target = 'Block A – Basic Sciences Block'.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            if (normalizedBuilding === target) {
+                const solarRaw = getValueByPartialKey(row, 'Solar');
+                const val = parseFloat(solarRaw.replace(/,/g, ''));
+                return isNaN(val) ? 0 : val;
+            }
+            return 0;
+        }
+    },
+    {
+        targetKey: 'Wind Generation (kWh)',
+        formula: (row: Record<string, string>) => {
+            const building = (row['Building'] || '').trim();
+            const normalizedBuilding = building.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            const target = 'Block A – Basic Sciences Block'.replace(/\s/g, '').replace(/[–—-]/g, '-');
+            if (normalizedBuilding === target) {
+                const windRaw = getValueByPartialKey(row, 'Wind');
+                const val = parseFloat(windRaw.replace(/,/g, ''));
+                return isNaN(val) ? 0 : val;
+            }
+            return 0;
+        }
+    },
+    {
         targetKey: 'Renewable Energy Produced (kWh)',
         formula: (row: Record<string, string>) => {
-            const solarRaw = getValueByPartialKey(row, 'Solar');
-            const solar = parseFloat(solarRaw.replace(/,/g, ''));
-            const windRaw = getValueByPartialKey(row, 'Wind');
-            const wind = parseFloat(windRaw.replace(/,/g, ''));
+            // Uses the filtered values computed above
+            const solar = parseFloat(row['Solar Generation (kWh)'] || '0');
+            const wind = parseFloat(row['Wind Generation (kWh)'] || '0');
             return (isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind);
         }
     },
     {
         targetKey: 'Net Grid Electricity (kWh)',
         formula: (row: Record<string, string>) => {
-            const consumed = parseFloat(row['Electricity Consumed in KWh']?.replace(/,/g, '') ?? '0');
-            const solarRaw = getValueByPartialKey(row, 'Solar');
-            const solar = parseFloat(solarRaw.replace(/,/g, ''));
-            const windRaw = getValueByPartialKey(row, 'Wind');
-            const wind = parseFloat(windRaw.replace(/,/g, ''));
+            const consumedRaw = getValueByPartialKey(row, 'Electricity Consumed');
+            const consumed = parseFloat(consumedRaw.replace(/,/g, ''));
+            const solar = parseFloat(row['Solar Generation (kWh)'] || '0');
+            const wind = parseFloat(row['Wind Generation (kWh)'] || '0');
             return Math.max(0, (isNaN(consumed) ? 0 : consumed) - ((isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind)));
         }
     },
     {
         targetKey: 'Gross Emissions (kg CO2e)',
         formula: (row: Record<string, string>) => {
-            const consumed = parseFloat(row['Electricity Consumed in KWh']?.replace(/,/g, '') ?? '0');
+            const consumedRaw = getValueByPartialKey(row, 'Electricity Consumed');
+            const consumed = parseFloat(consumedRaw.replace(/,/g, ''));
             const ef = parseFloat(row['Emission Factor (KgCO2e/KWh)']?.replace(/,/g, '') ?? '0');
             return (isNaN(consumed) ? 0 : consumed) * (isNaN(ef) ? 0 : ef);
         }
@@ -60,27 +87,16 @@ const ELECTRICITY_COMPUTE_FIELDS: ComputeField[] = [
     {
         targetKey: 'Final Emissions (kg CO2e)',
         formula: (row: Record<string, string>) => {
-            const consumed = parseFloat(row['Electricity Consumed in KWh']?.replace(/,/g, '') ?? '0');
-            const solarRaw = getValueByPartialKey(row, 'Solar');
-            const solar = parseFloat(solarRaw.replace(/,/g, ''));
-            const windRaw = getValueByPartialKey(row, 'Wind');
-            const wind = parseFloat(windRaw.replace(/,/g, ''));
+            const net = parseFloat(row['Net Grid Electricity (kWh)'] || '0');
             const ef = parseFloat(row['Emission Factor (KgCO2e/KWh)']?.replace(/,/g, '') ?? '0');
-            const net = Math.max(0, (isNaN(consumed) ? 0 : consumed) - ((isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind)));
             return net * (isNaN(ef) ? 0 : ef);
         }
     },
     {
         targetKey: 'Final Emissions (tCO2e)',
         formula: (row: Record<string, string>) => {
-            const consumed = parseFloat(row['Electricity Consumed in KWh']?.replace(/,/g, '') ?? '0');
-            const solarRaw = getValueByPartialKey(row, 'Solar');
-            const solar = parseFloat(solarRaw.replace(/,/g, ''));
-            const windRaw = getValueByPartialKey(row, 'Wind');
-            const wind = parseFloat(windRaw.replace(/,/g, ''));
-            const ef = parseFloat(row['Emission Factor (KgCO2e/KWh)']?.replace(/,/g, '') ?? '0');
-            const net = Math.max(0, (isNaN(consumed) ? 0 : consumed) - ((isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind)));
-            return (net * (isNaN(ef) ? 0 : ef)) / 1000;
+            const kgEmission = parseFloat(row['Final Emissions (kg CO2e)'] || '0');
+            return kgEmission / 1000;
         }
     }
 ];
