@@ -1,5 +1,6 @@
 import { type ColumnDef } from '@/types/types';
 import { TrendingDown } from 'lucide-react';
+import React from 'react';
 
 interface SubTabSummaryCardsProps {
     columns: ColumnDef[];
@@ -7,6 +8,7 @@ interface SubTabSummaryCardsProps {
     loading: boolean;
     accentColor: string;
     accentBg: string;
+    children?: React.ReactNode;
 }
 
 export function SubTabSummaryCards({
@@ -15,11 +17,13 @@ export function SubTabSummaryCards({
     loading,
     accentColor,
     accentBg,
+    children,
 }: SubTabSummaryCardsProps) {
     const cardColumns = columns.filter((c) => c.showInCard && c.type === 'numeric');
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {children}
             {cardColumns.map((col) => {
                 const rawVal = totals[col.key];
                 const val = typeof rawVal === 'number' && !isNaN(rawVal) ? rawVal : 0;

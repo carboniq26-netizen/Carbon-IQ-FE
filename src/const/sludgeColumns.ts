@@ -63,11 +63,10 @@ export const SLUDGE_ENERGY_COMPUTE_FIELDS: ComputeField[] = [
             const energy = q * 0.35 * 6;
             
             const yearStr = getValueByPartialKey(row, 'Reporting Year');
-            // EF logic: 2024: 0.727, 2025: 0.71
-            let efElectricity = 0.727; 
-            if (yearStr.includes('2025')) {
+            let efElectricity = 0.727; // Default to 2024-25
+            if (yearStr.includes('2023-24')) {
                 efElectricity = 0.71;
-            } else if (yearStr.includes('2024')) {
+            } else if (yearStr.includes('2024-25')) {
                 efElectricity = 0.727;
             }
             

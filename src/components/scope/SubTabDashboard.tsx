@@ -4,6 +4,7 @@ import { type SubTabConfig } from '@/types/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { type MultiSelectOption } from '@/components/ui/multi-select';
 import { SubTabSummaryCards } from './SubTabSummaryCards';
+import { EvElectricityCard } from './EvElectricityCard';
 import { EmissionBarChart } from '@/components/charts/EmissionBarChart';
 import { EmissionDonutChart } from '@/components/charts/EmissionDonutChart';
 import { Calendar, CalendarDays, Info } from 'lucide-react';
@@ -371,7 +372,19 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                     loading={loading}
                     accentColor={tab.color}
                     accentBg={tab.bgColor}
-                />
+                >
+                    {tab.key === 'electricity' && (
+                        <EvElectricityCard
+                            fromYear={fromYear}
+                            toYear={toYear}
+                            fromMonth={fromMonth}
+                            toMonth={toMonth}
+                            isRangeReady={isRangeReady}
+                            accentColor={tab.color}
+                            accentBg={tab.bgColor}
+                        />
+                    )}
+                </SubTabSummaryCards>
 
                 {/* Charts */}
                 {chartGrouped.length > 0 && (
