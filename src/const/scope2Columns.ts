@@ -16,10 +16,10 @@ const ELECTRICITY_COLUMNS: ColumnDef[] = [
     { key: 'Emission Factor (KgCO2e/KWh)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/kWh' },
     { key: 'Solar Generation (kWh)', label: 'Solar Generated', type: 'numeric', unit: 'kWh' },
     { key: 'Wind Generation (kWh)', label: 'Wind Generated', type: 'numeric', unit: 'kWh' },
-    { key: 'Renewable Energy Produced (kWh)', label: 'Renewable Energy Produced', type: 'numeric', showInCard: true, unit: 'kWh', ignoreFilters: ['Building'] },
-    { key: 'Final Emissions (kg CO2e)', label: 'Final Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Final Emissions (tCO2e)', label: 'Final Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
-    { key: 'Gross Emissions (kg CO2e)', label: 'Annualised Emissions', type: 'numeric', unit: 'kg CO₂e' },
+    { key: 'Renewable Energy Produced (kWh)', label: 'Renewable Energy Produced', type: 'numeric', showInCard: true, unit: 'kWh' },
+    { key: 'Final Emissions (kg CO2e)', label: 'Final Emissions', type: 'numeric', showInCard: true, unit: 'kg CO₂e', clampMinZero: true },
+    { key: 'Final Emissions (tCO2e)', label: 'Final Emissions (t)', type: 'numeric', showInCard: true, unit: 'tCO₂e', clampMinZero: true },
+    { key: 'Gross Emissions (kg CO2e)', label: 'Net Emissions', type: 'numeric', unit: 'kg CO₂e', clampMinZero: true },
 ];
 
 const getValueByPartialKey = (row: Record<string, string>, search: string): string => {
@@ -31,35 +31,22 @@ const ELECTRICITY_COMPUTE_FIELDS: ComputeField[] = [
     {
         targetKey: 'Solar Generation (kWh)',
         formula: (row: Record<string, string>) => {
-            const building = (row['Building'] || '').trim();
-            const normalizedBuilding = building.replace(/\s/g, '').replace(/[–—-]/g, '-');
-            const target = 'Block A – Basic Sciences Block'.replace(/\s/g, '').replace(/[–—-]/g, '-');
-            if (normalizedBuilding === target) {
-                const solarRaw = getValueByPartialKey(row, 'Solar');
-                const val = parseFloat(solarRaw.replace(/,/g, ''));
-                return isNaN(val) ? 0 : val;
-            }
-            return 0;
+            const solarRaw = getValueByPartialKey(row, 'Solar');
+            const val = parseFloat(solarRaw.replace(/,/g, ''));
+            return isNaN(val) ? 0 : val;
         }
     },
     {
         targetKey: 'Wind Generation (kWh)',
         formula: (row: Record<string, string>) => {
-            const building = (row['Building'] || '').trim();
-            const normalizedBuilding = building.replace(/\s/g, '').replace(/[–—-]/g, '-');
-            const target = 'Block A – Basic Sciences Block'.replace(/\s/g, '').replace(/[–—-]/g, '-');
-            if (normalizedBuilding === target) {
-                const windRaw = getValueByPartialKey(row, 'Wind');
-                const val = parseFloat(windRaw.replace(/,/g, ''));
-                return isNaN(val) ? 0 : val;
-            }
-            return 0;
+            const windRaw = getValueByPartialKey(row, 'Wind');
+            const val = parseFloat(windRaw.replace(/,/g, ''));
+            return isNaN(val) ? 0 : val;
         }
     },
     {
         targetKey: 'Renewable Energy Produced (kWh)',
         formula: (row: Record<string, string>) => {
-            // Uses the filtered values computed above
             const solar = parseFloat(row['Solar Generation (kWh)'] || '0');
             const wind = parseFloat(row['Wind Generation (kWh)'] || '0');
             return (isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind);
@@ -70,9 +57,7 @@ const ELECTRICITY_COMPUTE_FIELDS: ComputeField[] = [
         formula: (row: Record<string, string>) => {
             const consumedRaw = getValueByPartialKey(row, 'Electricity Consumed');
             const consumed = parseFloat(consumedRaw.replace(/,/g, ''));
-            const solar = parseFloat(row['Solar Generation (kWh)'] || '0');
-            const wind = parseFloat(row['Wind Generation (kWh)'] || '0');
-            return Math.max(0, (isNaN(consumed) ? 0 : consumed) - ((isNaN(solar) ? 0 : solar) + (isNaN(wind) ? 0 : wind)));
+            return isNaN(consumed) ? 0 : consumed;
         }
     },
     {

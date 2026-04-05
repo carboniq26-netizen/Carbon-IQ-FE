@@ -9,7 +9,7 @@ interface SummaryCardsProps {
     solarGenerated: number;
     windGenerated: number;
     biogasProduced: number;
-    biogasNetImpact: number;
+    totalAvoidedEmissions: number;
     loading: boolean;
 }
 
@@ -24,7 +24,7 @@ export function SummaryCards({
     solarGenerated,
     windGenerated,
     biogasProduced,
-    biogasNetImpact,
+    totalAvoidedEmissions,
     loading
 }: SummaryCardsProps) {
     const renderCard = (label: string, subtitle: string, value: number, unit: string, Icon: React.ElementType, color: string, bgColor: string) => {
@@ -57,10 +57,10 @@ export function SummaryCards({
         <div className="space-y-5">
             {/* Row 1: Scopes 1, 2, 3 and Biogenics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                {renderCard('Scope 1', 'Direct Emissions', scope1Total, 'kg CO₂e', Flame, 'text-danger', 'bg-danger/10')}
-                {renderCard('Scope 2', 'Energy Indirect', scope2Total, 'kg CO₂e', Zap, 'text-warning', 'bg-warning/10')}
-                {renderCard('Scope 3', 'Other Indirect', scope3Total, 'kg CO₂e', Globe, 'text-info', 'bg-info/10')}
-                {renderCard('Biogenics', 'Biological Sources', biogenicsTotal, 'kg CO₂', Leaf, 'text-green-600', 'bg-green-100')}
+                {renderCard('Scope 1', 'Direct Emissions', scope1Total / 1000, 'tCO₂e', Flame, 'text-danger', 'bg-danger/10')}
+                {renderCard('Scope 2', 'Energy Indirect', scope2Total / 1000, 'tCO₂e', Zap, 'text-warning', 'bg-warning/10')}
+                {renderCard('Scope 3', 'Other Indirect', scope3Total / 1000, 'tCO₂e', Globe, 'text-info', 'bg-info/10')}
+                {renderCard('Biogenics', 'Biological Sources', biogenicsTotal / 1000, 'tCO₂', Leaf, 'text-green-600', 'bg-green-100')}
             </div>
 
             {/* Row 2: Solar, Wind, Biogas Produced, Net Climate Impact */}
@@ -68,7 +68,7 @@ export function SummaryCards({
                 {renderCard('Solar Generated', 'Renewable Energy', solarGenerated, 'kWh', Sun, 'text-orange-500', 'bg-orange-100')}
                 {renderCard('Wind Generated', 'Renewable Energy', windGenerated, 'kWh', Wind, 'text-cyan-500', 'bg-cyan-100')}
                 {renderCard('Biogas Produced', 'CH₄ (Methane) Produced', biogasProduced, 'kg', FlameKindling, 'text-orange-600', 'bg-orange-100')}
-                {renderCard('Net Climate Impact', 'Scope 3 Biogas', biogasNetImpact, 'kg CO₂e', Globe, 'text-indigo-600', 'bg-indigo-100')}
+                {renderCard('Avoided Emissions', 'Biogas & Sludge', totalAvoidedEmissions / 1000, 'tCO₂e', Globe, 'text-indigo-600', 'bg-indigo-100')}
             </div>
         </div>
     );

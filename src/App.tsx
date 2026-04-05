@@ -9,6 +9,7 @@ import SludgeEnergy from './pages/SludgeEnergy';
 import SolarPower from './pages/SolarPower';
 import WindPower from './pages/WindPower';
 import EmissionFactors from './pages/EmissionFactors';
+import FormulaUsed from './pages/FormulaUsed';
 import { Toaster } from 'sonner';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/solar-power" element={<SolarPower />} />
           <Route path="/wind-power" element={<WindPower />} />
           <Route path="/emission-factors" element={<EmissionFactors />} />
+          <Route path="/formula-used" element={<FormulaUsed />} />
         </Route>
       </Routes>
     </BrowserRouter>

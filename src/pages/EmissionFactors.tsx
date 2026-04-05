@@ -131,7 +131,7 @@ export default function EmissionFactors() {
                             <div>
                                 <h3 className="text-sm font-semibold text-text-main">LPG Consumption</h3>
                                 <p className="text-sm text-text-secondary bg-bg-section p-3 rounded-lg mt-1 border border-border">
-                                    Diesel = <strong>2.68</strong> kg CO₂e/kg (Note: Value matched from doc)
+                                    Diesel = <strong>2.98</strong> kg CO₂e/kg
                                 </p>
                             </div>
                         </div>

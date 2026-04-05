@@ -39,6 +39,8 @@ export interface ColumnDef {
     unit?: string;
     /** Columns to ignore when filtering this specific column for total cards */
     ignoreFilters?: string[];
+    /** Prevent aggregated values from dropping below zero (e.g. for carbon accounting rules) */
+    clampMinZero?: boolean;
 }
 
 /** Defines a column whose value is computed client-side from other columns */

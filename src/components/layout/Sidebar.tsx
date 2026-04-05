@@ -14,6 +14,7 @@ import {
     Sun,
     Wind,
     BatteryCharging,
+    Calculator,
 } from 'lucide-react';
 import { SCOPE1_TABS } from '@/const/scope1Columns';
 import { SCOPE2_TABS } from '@/const/scope2Columns';
@@ -71,6 +72,7 @@ const navItems: NavItem[] = [
     { to: '/solar-power', label: 'Solar Power', icon: Sun },
     { to: '/wind-power', label: 'Wind Energy', icon: Wind },
     { to: '/emission-factors', label: 'Emission Factors', icon: BookOpen },
+    { to: '/formula-used', label: 'Formula Used', icon: Calculator },
 ];
 
 export default function Sidebar() {
@@ -194,14 +196,14 @@ export default function Sidebar() {
                                                     group flex items-center gap-2.5 px-3 py-2 rounded-lg
                                                     transition-all duration-200 ease-out text-[13px]
                                                     ${isActive
-                                                        ? 'bg-primary-soft text-primary font-semibold'
-                                                        : 'text-text-muted hover:text-text-main hover:bg-bg-section'
+                                                        ? 'bg-primary-soft text-primary font-bold'
+                                                        : 'text-text-secondary font-semibold hover:text-text-main hover:bg-bg-section'
                                                     }
                                                     `
                                                 }
                                             >
-                                                <ChildIcon className="w-4 h-4 shrink-0" />
-                                                <span className="font-medium truncate">
+                                                <ChildIcon className="w-4 h-4 shrink-0 transition-colors duration-200" />
+                                                <span className="truncate tracking-tight">
                                                     {child.label}
                                                 </span>
                                             </NavLink>

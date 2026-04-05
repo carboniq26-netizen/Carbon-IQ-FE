@@ -51,20 +51,22 @@ export default function Dashboard() {
     const solarGenerated = getFilteredMetricTotal('solar-power', 'Solar Generation (kWh)', years, months);
     const windGenerated = getFilteredMetricTotal('wind-power', 'Wind Energy Generation (KWh)', years, months);
     const biogasProduced = getFilteredMetricTotal('biogas', 'CH4 Produced (kg)', years, months);
-    const biogasNetImpact = getFilteredMetricTotal('biogas', 'Net Emissions (kg CO2e)', years, months);
+    const biogasAvoided = getFilteredMetricTotal('biogas', 'Avoided CO2 (kg CO2e)', years, months);
+    const sludgeAvoided = getFilteredMetricTotal('sludge-energy', 'Avoided Emissions in KgCO2e', years, months);
+    const totalAvoidedEmissions = biogasAvoided + sludgeAvoided;
 
     const barData = [
-        { name: 'Scope 1', value: scope1Total, fill: SCOPE_COLORS[Scope.SCOPE_1] },
-        { name: 'Scope 2', value: scope2Total, fill: SCOPE_COLORS[Scope.SCOPE_2] },
-        { name: 'Scope 3', value: scope3Total, fill: SCOPE_COLORS[Scope.SCOPE_3] },
-        { name: 'Biogenics', value: biogenicsTotal, fill: SCOPE_COLORS[Scope.BIOGENICS] },
+        { name: 'Scope 1', value: scope1Total / 1000, fill: SCOPE_COLORS[Scope.SCOPE_1] },
+        { name: 'Scope 2', value: scope2Total / 1000, fill: SCOPE_COLORS[Scope.SCOPE_2] },
+        { name: 'Scope 3', value: scope3Total / 1000, fill: SCOPE_COLORS[Scope.SCOPE_3] },
+        { name: 'Biogenics', value: biogenicsTotal / 1000, fill: SCOPE_COLORS[Scope.BIOGENICS] },
     ];
 
     const pieData = [
-        { name: 'Scope 1', value: scope1Total, color: SCOPE_COLORS[Scope.SCOPE_1] },
-        { name: 'Scope 2', value: scope2Total, color: SCOPE_COLORS[Scope.SCOPE_2] },
-        { name: 'Scope 3', value: scope3Total, color: SCOPE_COLORS[Scope.SCOPE_3] },
-        { name: 'Biogenics', value: biogenicsTotal, color: SCOPE_COLORS[Scope.BIOGENICS] },
+        { name: 'Scope 1', value: scope1Total / 1000, color: SCOPE_COLORS[Scope.SCOPE_1] },
+        { name: 'Scope 2', value: scope2Total / 1000, color: SCOPE_COLORS[Scope.SCOPE_2] },
+        { name: 'Scope 3', value: scope3Total / 1000, color: SCOPE_COLORS[Scope.SCOPE_3] },
+        { name: 'Biogenics', value: biogenicsTotal / 1000, color: SCOPE_COLORS[Scope.BIOGENICS] },
     ].filter((d) => d.value > 0);
 
     const handleYearChange = (values: string[]) => {
@@ -126,14 +128,14 @@ export default function Dashboard() {
                 solarGenerated={solarGenerated}
                 windGenerated={windGenerated}
                 biogasProduced={biogasProduced}
-                biogasNetImpact={biogasNetImpact}
+                totalAvoidedEmissions={totalAvoidedEmissions}
                 loading={loading}
             />
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <EmissionBarChart data={barData} loading={loading} isEmpty={total === 0} />
-                <EmissionDonutChart data={pieData} total={total} loading={loading} isEmpty={total === 0} />
+                <EmissionDonutChart data={pieData} total={total / 1000} loading={loading} isEmpty={total === 0} />
             </div>
         </div>
     );

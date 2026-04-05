@@ -142,6 +142,52 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
     const finalTotals = useMemo(() => {
         const baseTotals = { ...filteredTotals };
         
+        let electricityOffset = 0;
+        let dedupSolar = 0;
+        let dedupWind = 0;
+        
+        if (tab.key === 'electricity') {
+            const timeframeRows = getFilteredRowsByRange(
+               isRangeReady ? fromYear : undefined,
+               isRangeReady ? toYear : undefined,
+               isRangeReady ? fromMonth : undefined,
+               isRangeReady ? toMonth : undefined,
+               undefined // raw unfiltered by extra columns
+            );
+            
+            const seen = new Set<string>();
+            timeframeRows.forEach((r: Record<string, string>) => {
+               const yr = (r['Reporting Year'] || '').trim();
+               const mo = (r['Month'] || '').trim();
+               if (!yr) return;
+               const key = `${yr}-${mo}`;
+               if (!seen.has(key)) {
+                   seen.add(key);
+                   const rowSolar = parseFloat(r['Solar Generation (kWh)'] || '0');
+                   const rowWind = parseFloat(r['Wind Generation (kWh)'] || '0');
+                   const solar = isNaN(rowSolar) ? 0 : rowSolar;
+                   const wind = isNaN(rowWind) ? 0 : rowWind;
+                   
+                   dedupSolar += solar;
+                   dedupWind += wind;
+                   
+                   const efStr = Object.keys(r).find((k: string) => k.toLowerCase().includes('factor') && k.toLowerCase().includes('kg'));
+                   const ef = parseFloat(r[efStr || ''] || '0');
+                   electricityOffset += (solar + wind) * (isNaN(ef) ? 0 : ef);
+               }
+            });
+            
+            baseTotals['Solar Generation (kWh)'] = dedupSolar;
+            baseTotals['Wind Generation (kWh)'] = dedupWind;
+            baseTotals['Renewable Energy Produced (kWh)'] = dedupSolar + dedupWind;
+            
+            if (!activeExtra?.['Building'] || activeExtra['Building'].length === 0) {
+                 baseTotals['Final Emissions (kg CO2e)'] -= electricityOffset;
+                 baseTotals['Final Emissions (tCO2e)'] -= (electricityOffset / 1000);
+                 baseTotals['Gross Emissions (kg CO2e)'] -= electricityOffset;
+            }
+        }
+        
         // Check if any visible card columns need to ignore specific filters
         tab.columns.forEach(col => {
             if (col.showInCard && col.ignoreFilters && col.ignoreFilters.length > 0) {
@@ -165,6 +211,9 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
                     baseTotals[col.key] = specialTotals[col.key] || 0;
                 }
             }
+            if (col.clampMinZero && baseTotals[col.key] < 0) {
+                baseTotals[col.key] = 0;
+            }
         });
         
         return baseTotals;
@@ -182,48 +231,92 @@ export function SubTabDashboard({ tab }: SubTabDashboardProps) {
 
     const primaryChartKey =
         tab.chartTargetKey ?? tab.columns.find((c) => c.key.includes('Emissions (kg CO2e)'))?.key ?? '';
+    const primaryChartCol = tab.columns.find((c) => c.key === primaryChartKey);
 
     const chartGrouped = useMemo(() => {
         if (!primaryChartKey) return [];
 
         const map = new Map<string, number>();
+        const offsetMap = new Map<string, number>();
+        const seen = new Set<string>();
 
         if (chartGroupBy === 'year') {
             filteredRows.forEach((r) => {
                 const year = r['Reporting Year']?.trim();
+                const month = r['Month']?.trim();
                 if (!year) return;
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(year, (map.get(year) ?? 0) + (isNaN(val) ? 0 : val));
+
+                if (tab.key === 'electricity' && (!activeExtra?.['Building'] || activeExtra['Building'].length === 0)) {
+                    const dKey = `${year}-${month}`;
+                    if (!seen.has(dKey)) {
+                        seen.add(dKey);
+                        const rowSolar = parseFloat(r['Solar Generation (kWh)'] || '0');
+                        const rowWind = parseFloat(r['Wind Generation (kWh)'] || '0');
+                        const efStr = Object.keys(r).find(k => k.toLowerCase().includes('factor') && k.toLowerCase().includes('kg'));
+                        const ef = parseFloat(r[efStr || ''] || '0');
+                        const offset = ((isNaN(rowSolar) ? 0 : rowSolar) + (isNaN(rowWind) ? 0 : rowWind)) * (isNaN(ef) ? 0 : ef);
+                        offsetMap.set(year, (offsetMap.get(year) ?? 0) + offset);
+                    }
+                }
             });
             const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-            return sorted.map(([name, value], i) => ({
-                name,
-                value,
-                fill: CHART_COLORS[i % CHART_COLORS.length],
-                color: CHART_COLORS[i % CHART_COLORS.length],
-            }));
+            return sorted.map(([name, value], i) => {
+                let finalVal = value;
+                if (offsetMap.has(name)) finalVal -= offsetMap.get(name)!;
+                return {
+                    name,
+                    value: primaryChartCol?.clampMinZero ? Math.max(0, finalVal) : finalVal,
+                    fill: CHART_COLORS[i % CHART_COLORS.length],
+                    color: CHART_COLORS[i % CHART_COLORS.length],
+                };
+            });
         } else {
             filteredRows.forEach((r) => {
                 const month = r['Month']?.trim();
+                const year = r['Reporting Year']?.trim();
                 if (!month) return;
                 const val = parseFloat(r[primaryChartKey] ?? '0');
                 map.set(month, (map.get(month) ?? 0) + (isNaN(val) ? 0 : val));
+
+                if (tab.key === 'electricity' && (!activeExtra?.['Building'] || activeExtra['Building'].length === 0)) {
+                    const dKey = `${year}-${month}`;
+                    if (!seen.has(dKey)) {
+                        seen.add(dKey);
+                        const rowSolar = parseFloat(r['Solar Generation (kWh)'] || '0');
+                        const rowWind = parseFloat(r['Wind Generation (kWh)'] || '0');
+                        const efStr = Object.keys(r).find(k => k.toLowerCase().includes('factor') && k.toLowerCase().includes('kg'));
+                        const ef = parseFloat(r[efStr || ''] || '0');
+                        const offset = ((isNaN(rowSolar) ? 0 : rowSolar) + (isNaN(rowWind) ? 0 : rowWind)) * (isNaN(ef) ? 0 : ef);
+                        offsetMap.set(month, (offsetMap.get(month) ?? 0) + offset);
+                    }
+                }
             });
             const sorted = Array.from(map.entries()).sort((a, b) => {
                 const na = getMonthNumber(a[0]);
                 const nb = getMonthNumber(b[0]);
                 return na.localeCompare(nb);
             });
-            return sorted.map(([name, value], i) => ({
-                name: getMonthLabel(name),
-                value,
-                fill: CHART_COLORS[i % CHART_COLORS.length],
-                color: CHART_COLORS[i % CHART_COLORS.length],
-            }));
+            return sorted.map(([name, value], i) => {
+                let finalVal = value;
+                // find un-localized month name for offsetMap match
+                const rawMonthMatch = Array.from(offsetMap.keys()).find(k => getMonthLabel(k) === getMonthLabel(name));
+                if (rawMonthMatch) finalVal -= offsetMap.get(rawMonthMatch)!;
+                return {
+                    name: getMonthLabel(name),
+                    value: primaryChartCol?.clampMinZero ? Math.max(0, finalVal) : finalVal,
+                    fill: CHART_COLORS[i % CHART_COLORS.length],
+                    color: CHART_COLORS[i % CHART_COLORS.length],
+                };
+            });
         }
-    }, [filteredRows, primaryChartKey, chartGroupBy]);
+    }, [filteredRows, primaryChartKey, primaryChartCol, chartGroupBy, tab.key, activeExtra]);
 
-    const totalEmission = filteredTotals[primaryChartKey] ?? 0;
+    let totalEmission = filteredTotals[primaryChartKey] ?? 0;
+    if (primaryChartCol?.clampMinZero && totalEmission < 0) {
+        totalEmission = 0;
+    }
 
     /* ── Filter label ──────────────────────────────── */
     const filterLabel = useMemo(() => {

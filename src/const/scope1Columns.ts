@@ -120,7 +120,9 @@ const VEHICLE_COLUMNS: ColumnDef[] = [
     { key: 'Vehicle ID', label: 'Vehicle ID', type: 'text' },
     { key: 'Vehicle Type (Bus/Car/Van/Bike)', label: 'Vehicle Type', type: 'text' },
     { key: 'Fuel Type (Diesel/Petrol/CNG)', label: 'Fuel Type', type: 'text' },
-    { key: 'Fuel Consumed (Litres or kg)', label: 'Fuel Consumed', type: 'numeric', showInCard: true, unit: 'L/kg' },
+    { key: 'Fuel Consumed (Litres or kg)', label: 'Fuel Consumed', type: 'numeric', showInCard: false, unit: 'L/kg' },
+    { key: 'Non-EV Fuel Consumed', label: 'Fuel Consumed', type: 'numeric', showInCard: true, showInTable: false, unit: 'L/kg' },
+    { key: 'EV Electricity Consumed', label: 'EV Electricity Consumed', type: 'numeric', showInCard: true, showInTable: false, unit: 'kWh' },
     { key: 'Emission Factor (kg CO2e per Litre or kg)', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/L' },
     { key: 'Calculated Emissions (kg CO2e)', label: 'Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
     { key: 'Calculated Emissions (tCO2e)', label: 'Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
@@ -128,6 +130,24 @@ const VEHICLE_COLUMNS: ColumnDef[] = [
 
 /* ── Computed fields for Campus Owned Vehicles (same as DG Set) ── */
 const VEHICLE_COMPUTE_FIELDS: ComputeField[] = [
+    {
+        targetKey: 'Non-EV Fuel Consumed',
+        formula: (row) => {
+            const ft = (row['Fuel Type (Diesel/Petrol/CNG)'] || '').trim().toLowerCase();
+            const fuel = parseFloat(row['Fuel Consumed (Litres or kg)'] ?? '0');
+            if (ft === 'ev' || ft === 'electric') return 0;
+            return isNaN(fuel) ? 0 : fuel;
+        }
+    },
+    {
+        targetKey: 'EV Electricity Consumed',
+        formula: (row) => {
+            const ft = (row['Fuel Type (Diesel/Petrol/CNG)'] || '').trim().toLowerCase();
+            const fuel = parseFloat(row['Fuel Consumed (Litres or kg)'] ?? '0');
+            if (ft === 'ev' || ft === 'electric') return isNaN(fuel) ? 0 : fuel;
+            return 0;
+        }
+    },
     {
         targetKey: 'Calculated Emissions (kg CO2e)',
         formula: (row) => {
@@ -330,8 +350,8 @@ const STP_COLUMNS: ColumnDef[] = [
     { key: 'Treatment Type', label: 'Treatment Type', type: 'text' },
     { key: 'Wastewater Treated (m3)', label: 'Wastewater Treated', type: 'numeric', showInCard: true, unit: 'm³' },
     { key: 'EF in kg CO₂e/m³', label: 'Emission Factor', type: 'numeric', unit: 'kg CO₂e/m³' },
-    { key: 'Gross Emissions (kg CO2e)', label: 'Annualised Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
-    { key: 'Gross Emissions (tCO2e)', label: 'Annualised Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
+    { key: 'Gross Emissions (kg CO2e)', label: 'Net Emissions (Kg CO₂e)', type: 'numeric', showInCard: true, unit: 'kg CO₂e' },
+    { key: 'Gross Emissions (tCO2e)', label: 'Net Emissions (t CO₂e)', type: 'numeric', showInCard: true, unit: 'tCO₂e' },
 ];
 
 const STP_COMPUTE_FIELDS: ComputeField[] = [

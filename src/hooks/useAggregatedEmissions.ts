@@ -8,6 +8,7 @@ import { SOLAR_POWER_TAB } from '../const/solarPowerColumns';
 import { WIND_POWER_TAB } from '../const/windPowerColumns';
 import { SCOPE3_TABS } from '../const/scope3Columns';
 import { BIOGENICS_TAB } from '../const/biogenicsColumns';
+import { SLUDGE_ENERGY_TAB } from '../const/sludgeColumns';
 
 export interface AggregatedRecord {
     year: string;
@@ -34,7 +35,8 @@ const ALL_CONFIGS = [
     { tab: SOLAR_POWER_TAB, scope: Scope.SCOPE_2 },
     { tab: WIND_POWER_TAB, scope: Scope.SCOPE_2 },
     ...SCOPE3_TABS.map(tab => ({ tab, scope: Scope.SCOPE_3 })),
-    { tab: BIOGENICS_TAB, scope: Scope.BIOGENICS }
+    { tab: BIOGENICS_TAB, scope: Scope.BIOGENICS },
+    { tab: SLUDGE_ENERGY_TAB, scope: Scope.SCOPE_1 }
 ];
 
 const MONTH_NAMES = [
@@ -99,6 +101,8 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                             const yearKey = tab.columns.find((c) => c.key === 'Reporting Year' || c.key.includes('Year'))?.key;
                             const monthKey = tab.columns.find((c) => c.key === 'Month' || c.key.includes('Month'))?.key;
                             
+                            const seenElectricity = new Set<string>();
+                            
                             cleaned.forEach(row => {
 
                                 const year = yearKey ? (row[yearKey]?.trim() || '') : '';
@@ -131,6 +135,41 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                                         tabKey: tab.key,
                                         values
                                     });
+                                    
+                                    if (tab.key === 'electricity') {
+                                        const dKey = `${year}-${month}`;
+                                        if (!seenElectricity.has(dKey)) {
+                                            seenElectricity.add(dKey);
+                                            
+                                            const sKey = Object.keys(row).find(k => k.toLowerCase().includes('solar'));
+                                            const wKey = Object.keys(row).find(k => k.toLowerCase().includes('wind'));
+                                            const efKey = Object.keys(row).find(k => k.toLowerCase().includes('factor') && k.toLowerCase().includes('kg'));
+                                            
+                                            const sVal = (sKey && row[sKey]) ? String(row[sKey]).replace(/,/g, '').trim() : '0';
+                                            const wVal = (wKey && row[wKey]) ? String(row[wKey]).replace(/,/g, '').trim() : '0';
+                                            const efVal = (efKey && row[efKey]) ? String(row[efKey]).replace(/,/g, '').trim() : '0';
+                                            
+                                            const solar = parseFloat(sVal) || 0;
+                                            const wind = parseFloat(wVal) || 0;
+                                            const ef = parseFloat(efVal) || 0;
+                                            
+                                            const offset = (solar + wind) * ef;
+                                            console.error(`[PHANTOM_TRACE] ${year}-${month} | sKey: ${sKey}, solar: ${solar} | wKey: ${wKey}, wind: ${wind} | efKey: ${efKey}, ef: ${ef} | offset: ${offset}`);
+                                            
+                                            if (offset > 0) {
+                                                 allRecords.push({
+                                                     year,
+                                                     month,
+                                                     scope: Scope.SCOPE_2,
+                                                     tabKey: tab.key,
+                                                     values: {
+                                                         'Final Emissions (kg CO2e)': -offset,
+                                                         'Final Emissions (tCO2e)': -(offset / 1000)
+                                                     }
+                                                 });
+                                            }
+                                        }
+                                    }
                                 }
                             });
                             resolve();
@@ -193,12 +232,16 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
             const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
             let emissionKey: string | undefined;
 
+            if (r.tabKey === 'solar-power' || r.tabKey === 'wind-power') {
+                return acc; // Do not add solar/wind directly, they are offsets.
+            }
+
             if (r.tabKey === 'embodied-emissions') {
                 emissionKey = 'Annualised Emissions (kg CO2e)';
             } else {
                 emissionKey = tabConfig?.columns.find(
                     (c) => c.type === 'numeric' && 
-                           (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                           (c.key.toLowerCase().includes('kg co2') || c.key.toLowerCase().includes('kg co₂')) && 
                            c.key.toLowerCase().includes('emission') && 
                            !c.key.toLowerCase().includes('factor')
                 )?.key;
@@ -215,12 +258,16 @@ export function useAggregatedEmissions(): UseAggregatedEmissionsReturn {
                     const tabConfig = ALL_CONFIGS.find(c => c.tab.key === r.tabKey)?.tab;
                     let emissionKey: string | undefined;
 
+                    if (r.tabKey === 'solar-power' || r.tabKey === 'wind-power') {
+                        return acc; // Do not add solar/wind directly to Scope 2 totals
+                    }
+
                     if (r.tabKey === 'embodied-emissions') {
                         emissionKey = 'Annualised Emissions (kg CO2e)';
                     } else {
                         emissionKey = tabConfig?.columns.find(
                             (c) => c.type === 'numeric' && 
-                                   (c.key.includes('kg CO2') || c.key.includes('kg CO₂')) && 
+                                   (c.key.toLowerCase().includes('kg co2') || c.key.toLowerCase().includes('kg co₂')) && 
                                    c.key.toLowerCase().includes('emission') && 
                                    !c.key.toLowerCase().includes('factor')
                         )?.key;
